@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/careermindmap.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Career Mind Map</title>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Career Mind Map</h1>
+        <p>Enter a keyword to explore related concepts</p>
+      </header>
+
+      <div class="controls">
+        <div class="input-group">
+          <label for="api-key">Claude API Key:</label>
+          <input
+            type="password"
+            id="api-key"
+            placeholder="sk-ant-api03-..."
+          />
+        </div>
+
+        <div class="input-group">
+          <label for="keyword">Seed Keyword:</label>
+          <input
+            type="text"
+            id="keyword"
+            placeholder="e.g., software engineering"
+          />
+        </div>
+
+        <button id="generate-btn">Generate Mind Map</button>
+      </div>
+
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p id="loading-text">Generating associations...</p>
+      </div>
+
+      <div id="mindmap-container"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

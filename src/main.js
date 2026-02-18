@@ -13,7 +13,7 @@ async function callClaudeAPI(apiKey, prompt) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: [
         {
           role: 'user',
@@ -32,21 +32,57 @@ async function callClaudeAPI(apiKey, prompt) {
   return data.content[0].text
 }
 
-// Get all associations in a single API call
-async function getAllAssociations(apiKey, keyword) {
-  const prompt = `For the keyword "${keyword}", generate a mind map structure:
-1. List 10 words/phrases closely associated with "${keyword}"
-2. For each of those 10 words, list 3 related words/phrases
+// Get all associations for 3 keywords in a single API call
+async function getAllAssociations(apiKey, engagement, energy, flow) {
+  const prompt = `Generate word associations for a career mind map exercise. I have 3 keyphrases representing different aspects of career fulfillment:
+
+1. ENGAGEMENT: "${engagement}"
+2. ENERGY: "${energy}"
+3. FLOW: "${flow}"
+
+For EACH of these 3 keyphrases:
+- Generate exactly 7 closely associated words or short phrases
+- For each of those 7 words, generate exactly 3 related words or short phrases
 
 Return ONLY valid JSON in this exact format, no other text:
 {
-  "primary": [
-    {"word": "first association", "secondary": ["sub1", "sub2", "sub3"]},
-    {"word": "second association", "secondary": ["sub1", "sub2", "sub3"]}
-  ]
-}
-
-Include exactly 10 items in the primary array, each with exactly 3 secondary words.`
+  "engagement": {
+    "keyword": "${engagement}",
+    "associations": [
+      {"word": "association1", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association2", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association3", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association4", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association5", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association6", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association7", "secondary": ["sub1", "sub2", "sub3"]}
+    ]
+  },
+  "energy": {
+    "keyword": "${energy}",
+    "associations": [
+      {"word": "association1", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association2", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association3", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association4", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association5", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association6", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association7", "secondary": ["sub1", "sub2", "sub3"]}
+    ]
+  },
+  "flow": {
+    "keyword": "${flow}",
+    "associations": [
+      {"word": "association1", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association2", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association3", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association4", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association5", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association6", "secondary": ["sub1", "sub2", "sub3"]},
+      {"word": "association7", "secondary": ["sub1", "sub2", "sub3"]}
+    ]
+  }
+}`
 
   const response = await callClaudeAPI(apiKey, prompt)
 
@@ -59,19 +95,16 @@ Include exactly 10 items in the primary array, each with exactly 3 secondary wor
   return JSON.parse(jsonStr)
 }
 
-// Build the mind map data structure
-async function buildMindMapData(apiKey, seedKeyword, updateStatus) {
-  updateStatus('Generating mind map...')
-
-  const data = await getAllAssociations(apiKey, seedKeyword)
-
+// Build the mind map data structure for a single category
+function buildMindMapData(categoryData) {
+  const seedKeyword = categoryData.keyword
   const nodes = [
     { id: seedKeyword, level: 0, group: 0 }
   ]
   const links = []
 
   // Add primary and secondary nodes
-  data.primary.forEach((item, index) => {
+  categoryData.associations.forEach((item, index) => {
     const group = index + 1
 
     // Add primary node
@@ -91,21 +124,20 @@ async function buildMindMapData(apiKey, seedKeyword, updateStatus) {
   return { nodes, links }
 }
 
-// Color palette for groups
+// Color palette for groups - darker colors for better white text contrast
 const colorPalette = [
-  '#667eea', // center
-  '#f093fb', '#f5576c', '#4facfe', '#43e97b',
-  '#fa709a', '#fee140', '#30cfd0', '#a8edea',
-  '#ff9a9e', '#fecfef'
+  '#4338ca', // center - indigo
+  '#9333ea', '#dc2626', '#0369a1', '#047857',
+  '#be185d', '#b45309', '#0e7490'
 ]
 
 // Render the mind map using D3.js
-function renderMindMap(data) {
-  const container = document.getElementById('mindmap-container')
+function renderMindMap(data, containerId) {
+  const container = document.getElementById(containerId)
   container.innerHTML = ''
 
-  const width = container.clientWidth || 1000
-  const height = container.clientHeight || 600
+  const width = container.clientWidth || 400
+  const height = container.clientHeight || 500
 
   const svg = d3.select(container)
     .append('svg')
@@ -113,7 +145,7 @@ function renderMindMap(data) {
     .attr('height', height)
     .attr('viewBox', [0, 0, width, height])
 
-  // Create zoom behavior
+  // Create zoom behavior (pan only, no node dragging)
   const zoom = d3.zoom()
     .scaleExtent([0.3, 3])
     .on('zoom', (event) => {
@@ -122,20 +154,66 @@ function renderMindMap(data) {
 
   svg.call(zoom)
 
+  // Create radial gradients for fading circles
+  const defs = svg.append('defs')
+  colorPalette.forEach((color, i) => {
+    const gradient = defs.append('radialGradient')
+      .attr('id', `fade-gradient-${containerId}-${i}`)
+      .attr('cx', '50%')
+      .attr('cy', '50%')
+      .attr('r', '50%')
+
+    gradient.append('stop')
+      .attr('offset', '0%')
+      .attr('stop-color', color)
+      .attr('stop-opacity', 0.8)
+
+    gradient.append('stop')
+      .attr('offset', '60%')
+      .attr('stop-color', color)
+      .attr('stop-opacity', 0.4)
+
+    gradient.append('stop')
+      .attr('offset', '100%')
+      .attr('stop-color', color)
+      .attr('stop-opacity', 0)
+  })
+
   const g = svg.append('g')
 
-  // Create force simulation
+  // Add randomness to each node for organic spacing
+  data.nodes.forEach(node => {
+    node.randomOffset = {
+      distance: 0.6 + Math.random() * 0.8,
+      angle: Math.random() * Math.PI * 2
+    }
+  })
+
+  // Create force simulation with organic/hand-drawn feel
   const simulation = d3.forceSimulation(data.nodes)
     .force('link', d3.forceLink(data.links)
       .id(d => d.id)
       .distance(d => {
-        if (d.source.level === 0) return 150
-        return 80
+        const base = d.source.level === 0 ? 80 : 40
+        const variance = (Math.random() - 0.5) * 30
+        return base + variance
+      })
+      .strength(0.3)
+    )
+    .force('charge', d3.forceManyBody()
+      .strength(d => {
+        const base = d.level === 0 ? -200 : d.level === 1 ? -100 : -50
+        return base + (Math.random() - 0.5) * 50
       })
     )
-    .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => getRadius(d) + 10))
+    .force('collision', d3.forceCollide().radius(d => getRadius(d) + 3))
+    .force('jitter', d3.forceX().x(d => {
+      return width / 2 + Math.cos(d.randomOffset.angle) * 30 * d.randomOffset.distance
+    }).strength(0.02))
+    .force('jitterY', d3.forceY().y(d => {
+      return height / 2 + Math.sin(d.randomOffset.angle) * 30 * d.randomOffset.distance
+    }).strength(0.02))
 
   // Draw links
   const link = g.append('g')
@@ -145,57 +223,40 @@ function renderMindMap(data) {
     .append('line')
     .attr('class', 'link')
     .attr('stroke', d => colorPalette[d.source.group || 0])
-    .attr('stroke-width', d => d.source.level === 0 ? 3 : 2)
+    .attr('stroke-width', d => d.source.level === 0 ? 2 : 1.5)
 
-  // Draw nodes
+  function getRadius(d) {
+    if (d.level === 0) return 30
+    if (d.level === 1) return 20
+    return 12
+  }
+
+  // Draw nodes (no drag behavior)
   const node = g.append('g')
     .selectAll('.node')
     .data(data.nodes)
     .enter()
     .append('g')
     .attr('class', 'node')
-    .call(d3.drag()
-      .on('start', dragstarted)
-      .on('drag', dragged)
-      .on('end', dragended)
-    )
-
-  function getRadius(d) {
-    if (d.level === 0) return 40
-    if (d.level === 1) return 25
-    return 15
-  }
 
   node.append('circle')
-    .attr('r', getRadius)
-    .attr('fill', d => colorPalette[d.group])
-    .attr('stroke', d => d3.color(colorPalette[d.group]).darker(0.5))
+    .attr('r', d => getRadius(d) * 1.5)
+    .attr('fill', d => `url(#fade-gradient-${containerId}-${d.group})`)
+    .attr('stroke', 'none')
 
+  // Text is selectable
   node.append('text')
-    .text(d => d.id.length > 15 ? d.id.substring(0, 15) + '...' : d.id)
-    .attr('dy', d => d.level === 0 ? 5 : 4)
+    .text(d => d.id.length > 12 ? d.id.substring(0, 12) + '...' : d.id)
+    .attr('dy', d => d.level === 0 ? 4 : 3)
     .attr('font-size', d => {
-      if (d.level === 0) return '14px'
-      if (d.level === 1) return '11px'
-      return '9px'
+      if (d.level === 0) return '11px'
+      if (d.level === 1) return '9px'
+      return '7px'
     })
     .attr('font-weight', d => d.level === 0 ? 'bold' : 'normal')
-
-  // Tooltip for full text
-  const tooltip = d3.select('body')
-    .append('div')
-    .attr('class', 'tooltip')
-    .style('opacity', 0)
-
-  node.on('mouseover', (event, d) => {
-    tooltip.transition().duration(200).style('opacity', 1)
-    tooltip.html(d.id)
-      .style('left', (event.pageX + 10) + 'px')
-      .style('top', (event.pageY - 10) + 'px')
-  })
-    .on('mouseout', () => {
-      tooltip.transition().duration(200).style('opacity', 0)
-    })
+    .style('pointer-events', 'auto')
+    .style('user-select', 'text')
+    .style('cursor', 'text')
 
   // Update positions on tick
   simulation.on('tick', () => {
@@ -207,57 +268,52 @@ function renderMindMap(data) {
 
     node.attr('transform', d => `translate(${d.x},${d.y})`)
   })
-
-  function dragstarted(event) {
-    if (!event.active) simulation.alphaTarget(0.3).restart()
-    event.subject.fx = event.subject.x
-    event.subject.fy = event.subject.y
-  }
-
-  function dragged(event) {
-    event.subject.fx = event.x
-    event.subject.fy = event.y
-  }
-
-  function dragended(event) {
-    if (!event.active) simulation.alphaTarget(0)
-    event.subject.fx = null
-    event.subject.fy = null
-  }
 }
 
 // Main initialization
 function init() {
   const generateBtn = document.getElementById('generate-btn')
   const apiKeyInput = document.getElementById('api-key')
-  const keywordInput = document.getElementById('keyword')
+  const engagementInput = document.getElementById('keyword-engagement')
+  const energyInput = document.getElementById('keyword-energy')
+  const flowInput = document.getElementById('keyword-flow')
   const loading = document.getElementById('loading')
   const loadingText = document.getElementById('loading-text')
 
   generateBtn.addEventListener('click', async () => {
     const apiKey = apiKeyInput.value.trim()
-    const keyword = keywordInput.value.trim()
+    const engagement = engagementInput.value.trim()
+    const energy = energyInput.value.trim()
+    const flow = flowInput.value.trim()
 
     if (!apiKey) {
       alert('Please enter your Claude API key')
       return
     }
 
-    if (!keyword) {
-      alert('Please enter a seed keyword')
+    if (!engagement || !energy || !flow) {
+      alert('Please fill in all three keyword fields')
       return
     }
 
     generateBtn.disabled = true
     loading.classList.remove('hidden')
+    loadingText.textContent = 'Generating associations for all three categories...'
 
     try {
-      const data = await buildMindMapData(apiKey, keyword, (status) => {
-        loadingText.textContent = status
-      })
+      const data = await getAllAssociations(apiKey, engagement, energy, flow)
 
       loading.classList.add('hidden')
-      renderMindMap(data)
+
+      // Build and render each mind map
+      const engagementData = buildMindMapData(data.engagement)
+      const energyData = buildMindMapData(data.energy)
+      const flowData = buildMindMapData(data.flow)
+
+      renderMindMap(engagementData, 'mindmap-engagement')
+      renderMindMap(energyData, 'mindmap-energy')
+      renderMindMap(flowData, 'mindmap-flow')
+
     } catch (error) {
       console.error('Error:', error)
       alert(`Error: ${error.message}`)
@@ -267,21 +323,17 @@ function init() {
     }
   })
 
-  // Handle Enter key
-  keywordInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      generateBtn.click()
-    }
-  })
-
   // Handle window resize
   window.addEventListener('resize', () => {
-    const svg = document.querySelector('#mindmap-container svg')
-    if (svg) {
-      const container = document.getElementById('mindmap-container')
-      svg.setAttribute('width', container.clientWidth)
-      svg.setAttribute('height', container.clientHeight)
-    }
+    const containers = ['mindmap-engagement', 'mindmap-energy', 'mindmap-flow']
+    containers.forEach(id => {
+      const svg = document.querySelector(`#${id} svg`)
+      if (svg) {
+        const container = document.getElementById(id)
+        svg.setAttribute('width', container.clientWidth)
+        svg.setAttribute('height', container.clientHeight)
+      }
+    })
   })
 }
 

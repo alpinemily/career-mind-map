@@ -10,11 +10,11 @@
     <div id="app">
       <header>
         <h1>Career Mind Map</h1>
-        <p>Enter a keyword to explore related concepts</p>
+        <p>Explore your career interests through three lenses</p>
       </header>
 
       <div class="controls">
-        <div class="input-group">
+        <div class="input-group api-key-group">
           <label for="api-key">Claude API Key:</label>
           <input
             type="password"
@@ -23,16 +23,39 @@
           />
         </div>
 
-        <div class="input-group">
-          <label for="keyword">Seed Keyword:</label>
-          <input
-            type="text"
-            id="keyword"
-            placeholder="e.g., software engineering"
-          />
+        <div class="keyword-inputs">
+          <div class="input-group keyword-group">
+            <label for="keyword-engagement">Engagement:</label>
+            <p class="input-hint">Pick one of the areas of great interest to you or an activity during which you were really engaged (e.g. balancing the budget, pitching a new idea)</p>
+            <input
+              type="text"
+              id="keyword-engagement"
+              placeholder="e.g., pitching a new idea"
+            />
+          </div>
+
+          <div class="input-group keyword-group">
+            <label for="keyword-energy">Energy:</label>
+            <p class="input-hint">Pick something you've identified as really energizing you in your work and life (e.g. art class, giving feedback to colleagues, health-care access)</p>
+            <input
+              type="text"
+              id="keyword-energy"
+              placeholder="e.g., giving feedback to colleagues"
+            />
+          </div>
+
+          <div class="input-group keyword-group">
+            <label for="keyword-flow">Flow:</label>
+            <p class="input-hint">Pick an experience when you were in a state of flow (e.g. speaking in front of a large audience, brainstorming creative ideas)</p>
+            <input
+              type="text"
+              id="keyword-flow"
+              placeholder="e.g., brainstorming creative ideas"
+            />
+          </div>
         </div>
 
-        <button id="generate-btn">Generate Mind Map</button>
+        <button id="generate-btn">Generate Mind Maps</button>
       </div>
 
       <div id="loading" class="hidden">
@@ -40,7 +63,20 @@
         <p id="loading-text">Generating associations...</p>
       </div>
 
-      <div id="mindmap-container"></div>
+      <div id="mindmaps-wrapper">
+        <div class="mindmap-column">
+          <h2>Engagement</h2>
+          <div id="mindmap-engagement" class="mindmap-container"></div>
+        </div>
+        <div class="mindmap-column">
+          <h2>Energy</h2>
+          <div id="mindmap-energy" class="mindmap-container"></div>
+        </div>
+        <div class="mindmap-column">
+          <h2>Flow</h2>
+          <div id="mindmap-flow" class="mindmap-container"></div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

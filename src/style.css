@@ -27,16 +27,16 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 header h1 {
-  font-size: 2.5rem;
+  font-size: 2rem;
   margin: 0 0 0.5rem 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -51,21 +51,50 @@ header p {
 
 .controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: center;
-  align-items: flex-end;
-  margin-bottom: 2rem;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 1.5rem;
   padding: 1.5rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.api-key-group {
+  max-width: 400px;
+}
+
+.keyword-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .keyword-inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.keyword-group label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ccc;
+}
+
+.input-hint {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .input-group label {
@@ -80,7 +109,7 @@ header p {
   background: rgba(255, 255, 255, 0.05);
   color: white;
   font-size: 1rem;
-  min-width: 250px;
+  width: 100%;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -104,6 +133,7 @@ button {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+  align-self: center;
 }
 
 button:hover {
@@ -153,17 +183,42 @@ button:disabled {
   font-size: 0.875rem;
 }
 
-#mindmap-container {
+#mindmaps-wrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
   width: 100%;
   flex: 1;
-  min-height: 600px;
+}
+
+@media (max-width: 900px) {
+  #mindmaps-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mindmap-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.mindmap-column h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  color: #aaa;
+  text-align: center;
+}
+
+.mindmap-container {
+  flex: 1;
+  min-height: 500px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
-#mindmap-container svg {
+.mindmap-container svg {
   width: 100%;
   height: 100%;
 }
@@ -181,22 +236,13 @@ button:disabled {
 .node text {
   font-size: 12px;
   fill: white;
-  pointer-events: none;
+  pointer-events: auto;
   text-anchor: middle;
+  user-select: text;
+  cursor: text;
 }
 
 .link {
   fill: none;
   stroke-opacity: 0.4;
-}
-
-.tooltip {
-  position: absolute;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  border-radius: 6px;
-  font-size: 14px;
-  pointer-events: none;
-  z-index: 1000;
 }

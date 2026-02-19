@@ -8,75 +8,71 @@
   </head>
   <body>
     <div id="app">
-      <header>
-        <h1>Career Mind Map</h1>
-        <p>Explore your career interests through three lenses</p>
-      </header>
+      <!-- API Key in corner -->
+      <div class="api-key-corner">
+        <input
+          type="password"
+          id="api-key"
+          placeholder="Claude API Key"
+        />
+      </div>
 
-      <div class="controls">
-        <div class="input-group api-key-group">
-          <label for="api-key">Claude API Key:</label>
-          <input
-            type="password"
-            id="api-key"
-            placeholder="sk-ant-api03-..."
-          />
-        </div>
+      <!-- Main form area -->
+      <div id="form-container">
+        <header>
+          <h1>Career Mind Map</h1>
+        </header>
 
         <div class="keyword-inputs">
           <div class="input-group keyword-group">
-            <label for="keyword-engagement">Engagement:</label>
-            <p class="input-hint">Pick one of the areas of great interest to you or an activity during which you were really engaged (e.g. balancing the budget, pitching a new idea)</p>
+            <label for="keyword-engagement">Engagement</label>
+            <p class="input-hint">Pick an area of interest or an activity during which you were really engaged</p>
             <input
               type="text"
               id="keyword-engagement"
-              placeholder="e.g., pitching a new idea"
             />
+            <p class="input-example">e.g. balancing the budget, pitching a new idea</p>
           </div>
 
           <div class="input-group keyword-group">
-            <label for="keyword-energy">Energy:</label>
-            <p class="input-hint">Pick something you've identified as really energizing you in your work and life (e.g. art class, giving feedback to colleagues, health-care access)</p>
+            <label for="keyword-energy">Energy</label>
+            <p class="input-hint">Pick something you've identified as really energizing you in your work and life</p>
             <input
               type="text"
               id="keyword-energy"
-              placeholder="e.g., giving feedback to colleagues"
             />
+            <p class="input-example">e.g. art class, giving feedback to colleagues</p>
           </div>
 
           <div class="input-group keyword-group">
-            <label for="keyword-flow">Flow:</label>
-            <p class="input-hint">Pick an experience when you were in a state of flow (e.g. speaking in front of a large audience, brainstorming creative ideas)</p>
+            <label for="keyword-flow">Flow</label>
+            <p class="input-hint">Pick an activity or experience where you got into a flow state</p>
             <input
               type="text"
               id="keyword-flow"
-              placeholder="e.g., brainstorming creative ideas"
             />
+            <p class="input-example">e.g. speaking in front of a large audience, brainstorming creative ideas</p>
           </div>
         </div>
 
         <button id="generate-btn">Generate Mind Maps</button>
       </div>
 
+      <!-- Loading indicator -->
       <div id="loading" class="hidden">
         <div class="spinner"></div>
         <p id="loading-text">Generating associations...</p>
       </div>
 
-      <div id="mindmaps-wrapper">
-        <div class="mindmap-column">
-          <h2>Engagement</h2>
-          <div id="mindmap-engagement" class="mindmap-container"></div>
-        </div>
-        <div class="mindmap-column">
-          <h2>Energy</h2>
-          <div id="mindmap-energy" class="mindmap-container"></div>
-        </div>
-        <div class="mindmap-column">
-          <h2>Flow</h2>
-          <div id="mindmap-flow" class="mindmap-container"></div>
-        </div>
+      <!-- Keywords display at bottom after animation -->
+      <div id="keywords-display" class="hidden">
+        <span id="display-engagement" class="keyword-pill"></span>
+        <span id="display-energy" class="keyword-pill"></span>
+        <span id="display-flow" class="keyword-pill"></span>
       </div>
+
+      <!-- Single unified mind map container -->
+      <div id="mindmap-container" class="hidden"></div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

@@ -86,7 +86,6 @@ Return ONLY valid JSON in this exact format, no other text:
 
   const response = await callClaudeAPI(apiKey, prompt)
 
-  // Extract JSON from response (handle potential markdown code blocks)
   let jsonStr = response.trim()
   if (jsonStr.startsWith('```')) {
     jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
@@ -95,57 +94,118 @@ Return ONLY valid JSON in this exact format, no other text:
   return JSON.parse(jsonStr)
 }
 
-// Build the mind map data structure for a single category
-function buildMindMapData(categoryData) {
-  const seedKeyword = categoryData.keyword
-  const nodes = [
-    { id: seedKeyword, level: 0, group: 0 }
-  ]
-  const links = []
-
-  // Add primary and secondary nodes
-  categoryData.associations.forEach((item, index) => {
-    const group = index + 1
-
-    // Add primary node
-    nodes.push({ id: item.word, level: 1, group })
-    links.push({ source: seedKeyword, target: item.word })
-
-    // Add secondary nodes
-    item.secondary.forEach(word => {
-      // Avoid duplicate nodes
-      if (!nodes.find(n => n.id === word)) {
-        nodes.push({ id: word, level: 2, group })
-        links.push({ source: item.word, target: word })
-      }
-    })
-  })
-
-  return { nodes, links }
-}
-
-// Color palette for groups - darker colors for better white text contrast
+// Color palette - each group gets a different color (like the original)
 const colorPalette = [
   '#4338ca', // center - indigo
   '#9333ea', '#dc2626', '#0369a1', '#047857',
   '#be185d', '#b45309', '#0e7490'
 ]
 
-// Render the mind map using D3.js
-function renderMindMap(data, containerId) {
-  const container = document.getElementById(containerId)
+// Build unified mind map data with all 3 categories enmeshed
+function buildUnifiedMindMapData(data, width, height) {
+  const nodes = []
+  const links = []
+
+  // Horizontal layout - spread across the width
+  const padding = 100
+  const usableWidth = width - padding * 2
+  const usableHeight = height - padding * 2
+
+  // Centers spread horizontally but slightly staggered vertically
+  const centers = {
+    engagement: { x: padding + usableWidth * 0.2, y: height * 0.45 },
+    energy: { x: padding + usableWidth * 0.5, y: height * 0.4 },
+    flow: { x: padding + usableWidth * 0.8, y: height * 0.5 }
+  }
+
+  const categories = ['engagement', 'energy', 'flow']
+
+  categories.forEach((category, catIndex) => {
+    const categoryData = data[category]
+    const center = centers[category]
+
+    // Add center node
+    nodes.push({
+      id: `${category}-center`,
+      label: categoryData.keyword,
+      level: 0,
+      category,
+      group: 0,
+      color: colorPalette[0],
+      fx: center.x,
+      fy: center.y
+    })
+
+    // Add primary and secondary nodes
+    categoryData.associations.forEach((item, index) => {
+      const primaryId = `${category}-primary-${index}`
+      // Spread primary nodes in a wider arc
+      const angleOffset = catIndex === 0 ? Math.PI : catIndex === 1 ? Math.PI * 0.5 : 0
+      const angle = (index / 7) * Math.PI * 1.5 + angleOffset - Math.PI * 0.25
+
+      const groupColor = colorPalette[(index % 7) + 1]
+
+      nodes.push({
+        id: primaryId,
+        label: item.word,
+        level: 1,
+        category,
+        group: index + 1,
+        color: groupColor,
+        initialAngle: angle,
+        initialDistance: 150
+      })
+
+      links.push({
+        source: `${category}-center`,
+        target: primaryId,
+        category,
+        color: groupColor
+      })
+
+      // Add secondary nodes - push them toward edges
+      item.secondary.forEach((word, secIndex) => {
+        const secondaryId = `${category}-secondary-${index}-${secIndex}`
+        const secAngle = angle + ((secIndex - 1) * 0.3)
+
+        nodes.push({
+          id: secondaryId,
+          label: word,
+          level: 2,
+          category,
+          group: index + 1,
+          color: groupColor,
+          initialAngle: secAngle,
+          initialDistance: 100
+        })
+
+        links.push({
+          source: primaryId,
+          target: secondaryId,
+          category,
+          color: groupColor
+        })
+      })
+    })
+  })
+
+  return { nodes, links, centers }
+}
+
+// Render the unified mind map
+function renderMindMap(data) {
+  const container = document.getElementById('mindmap-container')
   container.innerHTML = ''
 
-  const width = container.clientWidth || 400
-  const height = container.clientHeight || 500
+  const width = window.innerWidth
+  const height = window.innerHeight - 80 // Leave room for keywords at bottom
 
   const svg = d3.select(container)
     .append('svg')
     .attr('width', width)
     .attr('height', height)
-    .attr('viewBox', [0, 0, width, height])
 
-  // Create zoom behavior (pan only, no node dragging)
+  // Create zoom behavior
   const zoom = d3.zoom()
     .scaleExtent([0.3, 3])
     .on('zoom', (event) => {
@@ -154,11 +214,15 @@ function renderMindMap(data, containerId) {
 
   svg.call(zoom)
 
-  // Create radial gradients for fading circles
+  // Build unified data
+  const mapData = buildUnifiedMindMapData(data, width, height)
+
+  // Create radial gradients for each color
   const defs = svg.append('defs')
+
   colorPalette.forEach((color, i) => {
     const gradient = defs.append('radialGradient')
-      .attr('id', `fade-gradient-${containerId}-${i}`)
+      .attr('id', `fade-gradient-${i}`)
       .attr('cx', '50%')
       .attr('cy', '50%')
       .attr('r', '50%')
@@ -166,12 +230,12 @@ function renderMindMap(data, containerId) {
     gradient.append('stop')
       .attr('offset', '0%')
       .attr('stop-color', color)
-      .attr('stop-opacity', 0.8)
+      .attr('stop-opacity', 0.7)
 
     gradient.append('stop')
-      .attr('offset', '60%')
+      .attr('offset', '50%')
       .attr('stop-color', color)
-      .attr('stop-opacity', 0.4)
+      .attr('stop-opacity', 0.3)
 
     gradient.append('stop')
       .attr('offset', '100%')
@@ -181,77 +245,132 @@ function renderMindMap(data, containerId) {
 
   const g = svg.append('g')
 
-  // Add randomness to each node for organic spacing
-  data.nodes.forEach(node => {
-    node.randomOffset = {
-      distance: 0.6 + Math.random() * 0.8,
-      angle: Math.random() * Math.PI * 2
+  // Initialize positions - push secondary nodes toward edges
+  const padding = 60
+  mapData.nodes.forEach(node => {
+    if (node.level === 0) return
+
+    const centerNode = mapData.nodes.find(n => n.id === `${node.category}-center`)
+    const angle = node.initialAngle || Math.random() * Math.PI * 2
+    const baseDist = node.level === 1 ? 150 : 220
+    const dist = baseDist + (Math.random() - 0.5) * 50
+
+    let x = centerNode.fx + Math.cos(angle) * dist
+    let y = centerNode.fy + Math.sin(angle) * dist
+
+    // For level 2 nodes, push toward edges
+    if (node.level === 2) {
+      // Push toward nearest edge
+      const distToLeft = x
+      const distToRight = width - x
+      const distToTop = y
+      const distToBottom = height - y
+
+      const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom)
+
+      if (minDist === distToLeft) x = Math.max(padding, x - 30)
+      else if (minDist === distToRight) x = Math.min(width - padding, x + 30)
+      else if (minDist === distToTop) y = Math.max(padding, y - 30)
+      else y = Math.min(height - padding, y + 30)
     }
+
+    node.x = x
+    node.y = y
   })
 
-  // Create force simulation with organic/hand-drawn feel
-  const simulation = d3.forceSimulation(data.nodes)
-    .force('link', d3.forceLink(data.links)
+  // Create force simulation
+  const simulation = d3.forceSimulation(mapData.nodes)
+    .force('link', d3.forceLink(mapData.links)
       .id(d => d.id)
       .distance(d => {
-        const base = d.source.level === 0 ? 80 : 40
-        const variance = (Math.random() - 0.5) * 30
-        return base + variance
+        const sourceLevel = mapData.nodes.find(n => n.id === (d.source.id || d.source))?.level || 0
+        if (sourceLevel === 0) return 120 + Math.random() * 40
+        return 70 + Math.random() * 30
       })
       .strength(0.3)
     )
     .force('charge', d3.forceManyBody()
       .strength(d => {
-        const base = d.level === 0 ? -200 : d.level === 1 ? -100 : -50
-        return base + (Math.random() - 0.5) * 50
+        if (d.level === 0) return -400
+        if (d.level === 1) return -200
+        return -100
       })
     )
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => getRadius(d) + 3))
-    .force('jitter', d3.forceX().x(d => {
-      return width / 2 + Math.cos(d.randomOffset.angle) * 30 * d.randomOffset.distance
-    }).strength(0.02))
-    .force('jitterY', d3.forceY().y(d => {
-      return height / 2 + Math.sin(d.randomOffset.angle) * 30 * d.randomOffset.distance
-    }).strength(0.02))
+    .force('collision', d3.forceCollide()
+      .radius(d => {
+        const textLen = d.label.length
+        return Math.max(textLen * 4.5 + 25, 35)
+      })
+      .strength(1)
+    )
+    // Keep primary nodes near their center, let secondary nodes spread to edges
+    .force('x', d3.forceX(d => {
+      if (d.level === 0) return d.fx
+      if (d.level === 2) {
+        // Push toward left or right edge based on position
+        const centerNode = mapData.nodes.find(n => n.id === `${d.category}-center`)
+        if (d.x < centerNode.fx) return padding + 50
+        return width - padding - 50
+      }
+      const centerNode = mapData.nodes.find(n => n.id === `${d.category}-center`)
+      return centerNode?.fx || width / 2
+    }).strength(d => d.level === 0 ? 1 : d.level === 2 ? 0.05 : 0.02))
+    .force('y', d3.forceY(d => {
+      if (d.level === 0) return d.fy
+      if (d.level === 2) {
+        // Push toward top or bottom based on position
+        if (d.y < height / 2) return padding + 50
+        return height - padding - 50
+      }
+      const centerNode = mapData.nodes.find(n => n.id === `${d.category}-center`)
+      return centerNode?.fy || height / 2
+    }).strength(d => d.level === 0 ? 1 : d.level === 2 ? 0.05 : 0.02))
+    // Keep nodes within bounds
+    .force('bounds', () => {
+      mapData.nodes.forEach(node => {
+        if (node.level === 0) return
+        node.x = Math.max(padding, Math.min(width - padding, node.x))
+        node.y = Math.max(padding, Math.min(height - padding, node.y))
+      })
+    })
 
   // Draw links
   const link = g.append('g')
     .selectAll('line')
-    .data(data.links)
+    .data(mapData.links)
     .enter()
     .append('line')
     .attr('class', 'link')
-    .attr('stroke', d => colorPalette[d.source.group || 0])
-    .attr('stroke-width', d => d.source.level === 0 ? 2 : 1.5)
+    .attr('stroke', d => d.color || '#666')
+    .attr('stroke-width', 1.5)
 
-  function getRadius(d) {
-    if (d.level === 0) return 30
-    if (d.level === 1) return 20
-    return 12
-  }
-
-  // Draw nodes (no drag behavior)
+  // Draw nodes
   const node = g.append('g')
     .selectAll('.node')
-    .data(data.nodes)
+    .data(mapData.nodes)
     .enter()
     .append('g')
     .attr('class', 'node')
 
+  function getRadius(d) {
+    if (d.level === 0) return 45
+    if (d.level === 1) return 28
+    return 16
+  }
+
   node.append('circle')
     .attr('r', d => getRadius(d) * 1.5)
-    .attr('fill', d => `url(#fade-gradient-${containerId}-${d.group})`)
+    .attr('fill', d => `url(#fade-gradient-${d.group})`)
     .attr('stroke', 'none')
 
-  // Text is selectable
+  // Text - no truncation
   node.append('text')
-    .text(d => d.id.length > 12 ? d.id.substring(0, 12) + '...' : d.id)
-    .attr('dy', d => d.level === 0 ? 4 : 3)
+    .text(d => d.label)
+    .attr('dy', d => d.level === 0 ? 5 : 4)
     .attr('font-size', d => {
-      if (d.level === 0) return '11px'
-      if (d.level === 1) return '9px'
-      return '7px'
+      if (d.level === 0) return '12px'
+      if (d.level === 1) return '10px'
+      return '8px'
     })
     .attr('font-weight', d => d.level === 0 ? 'bold' : 'normal')
     .style('pointer-events', 'auto')
@@ -267,6 +386,111 @@ function renderMindMap(data, containerId) {
       .attr('y2', d => d.target.y)
 
     node.attr('transform', d => `translate(${d.x},${d.y})`)
+  })
+
+  simulation.alpha(1).restart()
+}
+
+// Animation: animate keywords from input positions to bottom
+function animateKeywordsToBottom() {
+  return new Promise(resolve => {
+    const engagementInput = document.getElementById('keyword-engagement')
+    const energyInput = document.getElementById('keyword-energy')
+    const flowInput = document.getElementById('keyword-flow')
+
+    const engagement = engagementInput.value.trim()
+    const energy = energyInput.value.trim()
+    const flow = flowInput.value.trim()
+
+    // Get positions of inputs
+    const engRect = engagementInput.getBoundingClientRect()
+    const energyRect = energyInput.getBoundingClientRect()
+    const flowRect = flowInput.getBoundingClientRect()
+
+    // Create floating elements at input positions
+    const createFloater = (text, rect, id) => {
+      const el = document.createElement('div')
+      el.className = 'keyword-floater'
+      el.id = id
+      el.textContent = text
+      el.style.position = 'fixed'
+      el.style.left = rect.left + 'px'
+      el.style.top = rect.top + 'px'
+      el.style.width = rect.width + 'px'
+      el.style.padding = '0.75rem 1rem'
+      el.style.background = 'rgba(255,255,255,0.1)'
+      el.style.border = '1px solid rgba(255,255,255,0.2)'
+      el.style.borderRadius = '8px'
+      el.style.color = 'white'
+      el.style.fontSize = '1rem'
+      el.style.zIndex = '1000'
+      el.style.transition = 'all 0.8s ease-in-out'
+      document.body.appendChild(el)
+      return el
+    }
+
+    const floater1 = createFloater(engagement, engRect, 'floater-engagement')
+    const floater2 = createFloater(energy, energyRect, 'floater-energy')
+    const floater3 = createFloater(flow, flowRect, 'floater-flow')
+
+    // Hide form elements (but keep floaters visible)
+    const formContainer = document.getElementById('form-container')
+    formContainer.style.opacity = '0'
+    formContainer.style.pointerEvents = 'none'
+
+    // After a brief delay, animate floaters to bottom
+    setTimeout(() => {
+      const bottomY = window.innerHeight - 60
+      const centerX = window.innerWidth / 2
+
+      // Animate to pill style at bottom
+      const animateToBottom = (el, targetX) => {
+        el.style.left = targetX + 'px'
+        el.style.top = bottomY + 'px'
+        el.style.width = 'auto'
+        el.style.padding = '0.5rem 1rem'
+        el.style.borderRadius = '20px'
+        el.style.fontSize = '0.85rem'
+        el.style.transform = 'translateX(-50%)'
+      }
+
+      animateToBottom(floater1, centerX - 150)
+      animateToBottom(floater2, centerX)
+      animateToBottom(floater3, centerX + 150)
+
+      setTimeout(() => {
+        // Transfer to permanent display
+        const display = document.getElementById('keywords-display')
+        document.getElementById('display-engagement').textContent = engagement
+        document.getElementById('display-energy').textContent = energy
+        document.getElementById('display-flow').textContent = flow
+
+        display.classList.remove('hidden')
+        display.classList.add('visible')
+
+        // Remove floaters
+        floater1.remove()
+        floater2.remove()
+        floater3.remove()
+
+        // Hide form container completely
+        formContainer.classList.add('hidden')
+
+        resolve()
+      }, 800)
+    }, 100)
+  })
+}
+
+function showMindMap() {
+  return new Promise(resolve => {
+    const container = document.getElementById('mindmap-container')
+    container.classList.remove('hidden')
+
+    setTimeout(() => {
+      container.classList.add('visible')
+      resolve()
+    }, 50)
   })
 }
 
@@ -287,7 +511,7 @@ function init() {
     const flow = flowInput.value.trim()
 
     if (!apiKey) {
-      alert('Please enter your Claude API key')
+      alert('Please enter your Claude API key (top right corner)')
       return
     }
 
@@ -297,43 +521,41 @@ function init() {
     }
 
     generateBtn.disabled = true
+    generateBtn.style.display = 'none'
+
+    // Start animating keywords to bottom immediately
+    animateKeywordsToBottom()
+
+    // Show loading (positioned in center)
     loading.classList.remove('hidden')
-    loadingText.textContent = 'Generating associations for all three categories...'
+    loadingText.textContent = 'Generating your career mind map...'
 
     try {
       const data = await getAllAssociations(apiKey, engagement, energy, flow)
 
+      // Hide loading
       loading.classList.add('hidden')
 
-      // Build and render each mind map
-      const engagementData = buildMindMapData(data.engagement)
-      const energyData = buildMindMapData(data.energy)
-      const flowData = buildMindMapData(data.flow)
-
-      renderMindMap(engagementData, 'mindmap-engagement')
-      renderMindMap(energyData, 'mindmap-energy')
-      renderMindMap(flowData, 'mindmap-flow')
+      // Show and render mind map
+      await showMindMap()
+      renderMindMap(data)
 
     } catch (error) {
       console.error('Error:', error)
       alert(`Error: ${error.message}`)
       loading.classList.add('hidden')
-    } finally {
-      generateBtn.disabled = false
-    }
-  })
 
-  // Handle window resize
-  window.addEventListener('resize', () => {
-    const containers = ['mindmap-engagement', 'mindmap-energy', 'mindmap-flow']
-    containers.forEach(id => {
-      const svg = document.querySelector(`#${id} svg`)
-      if (svg) {
-        const container = document.getElementById(id)
-        svg.setAttribute('width', container.clientWidth)
-        svg.setAttribute('height', container.clientHeight)
-      }
-    })
+      // Reset form
+      const formContainer = document.getElementById('form-container')
+      formContainer.style.opacity = '1'
+      formContainer.style.pointerEvents = 'auto'
+      formContainer.classList.remove('hidden')
+      generateBtn.style.display = 'block'
+      generateBtn.disabled = false
+
+      // Remove any floaters
+      document.querySelectorAll('.keyword-floater').forEach(el => el.remove())
+    }
   })
 }
 

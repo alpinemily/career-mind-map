@@ -27,52 +27,77 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 1.5rem;
+  position: relative;
+}
+
+/* API Key - small corner input */
+.api-key-corner {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+}
+
+.api-key-corner input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7rem;
+  width: 140px;
+  transition: all 0.2s;
+}
+
+.api-key-corner input:focus {
+  outline: none;
+  border-color: #667eea;
+  width: 200px;
+  color: white;
+}
+
+.api-key-corner input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Form container - clean, no borders */
+#form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  max-width: 900px;
+  width: 100%;
+  transition: opacity 0.3s ease-out;
+}
+
+#form-container.hidden {
+  display: none;
 }
 
 header {
   text-align: center;
-  margin-bottom: 1.5rem;
 }
 
 header h1 {
   font-size: 2rem;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-header p {
-  color: #888;
-  margin: 0;
-}
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 1200px;
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.api-key-group {
-  max-width: 400px;
-}
-
 .keyword-inputs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+  gap: 2rem;
+  width: 100%;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 800px) {
   .keyword-inputs {
     grid-template-columns: 1fr;
   }
@@ -85,28 +110,33 @@ header p {
 }
 
 .keyword-group label {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #ccc;
+  text-align: center;
 }
 
 .input-hint {
-  font-size: 0.75rem;
-  color: #888;
+  font-size: 0.8rem;
+  color: #777;
   margin: 0;
   line-height: 1.4;
+  text-align: center;
 }
 
-.input-group label {
-  font-size: 0.875rem;
-  color: #aaa;
+.input-example {
+  font-size: 0.75rem;
+  color: #555;
+  margin: 0;
+  text-align: center;
+  font-style: italic;
 }
 
 .input-group input {
   padding: 0.75rem 1rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   color: white;
   font-size: 1rem;
   width: 100%;
@@ -120,7 +150,7 @@ header p {
 }
 
 .input-group input::placeholder {
-  color: #666;
+  color: #555;
 }
 
 button {
@@ -132,8 +162,7 @@ button {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  align-self: center;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
 }
 
 button:hover {
@@ -151,12 +180,20 @@ button:disabled {
   transform: none;
 }
 
+button.hidden {
+  display: none;
+}
+
+/* Loading */
 #loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  margin: 2rem 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 #loading.hidden {
@@ -183,58 +220,62 @@ button:disabled {
   font-size: 0.875rem;
 }
 
-#mindmaps-wrapper {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  width: 100%;
-  flex: 1;
-}
-
-@media (max-width: 900px) {
-  #mindmaps-wrapper {
-    grid-template-columns: 1fr;
-  }
-}
-
-.mindmap-column {
+/* Keywords display at bottom */
+#keywords-display {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
+  gap: 2rem;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.5s ease-in;
 }
 
-.mindmap-column h2 {
-  font-size: 1rem;
-  margin: 0 0 0.5rem 0;
-  color: #aaa;
-  text-align: center;
+#keywords-display.visible {
+  opacity: 1;
 }
 
-.mindmap-container {
-  flex: 1;
-  min-height: 500px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
+#keywords-display.hidden {
+  display: none;
 }
 
-.mindmap-container svg {
+.keyword-pill {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Mind map container */
+#mindmap-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.8s ease-in;
+}
+
+#mindmap-container.visible {
+  opacity: 1;
+}
+
+#mindmap-container.hidden {
+  display: none;
+}
+
+#mindmap-container svg {
   width: 100%;
   height: 100%;
 }
 
-.node circle {
-  stroke-width: 2px;
-  cursor: pointer;
-  transition: filter 0.2s;
-}
-
-.node circle:hover {
-  filter: brightness(1.2);
-}
-
 .node text {
-  font-size: 12px;
   fill: white;
   pointer-events: auto;
   text-anchor: middle;
@@ -244,5 +285,5 @@ button:disabled {
 
 .link {
   fill: none;
-  stroke-opacity: 0.4;
+  stroke-opacity: 0.3;
 }

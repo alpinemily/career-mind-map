@@ -74,6 +74,12 @@ const colorPalette = [
   '#fa709a', '#fee140', '#30cfd0'
 ]
 
+// Selection state
+let selectedNodes = []
+let mashGroups = []
+const MAX_MASHES = 10
+let allTertiaryNodes = [] // Store references to all tertiary node elements
+
 // Build simple radial mind map for one category
 function buildCategoryMap(categoryData, centerX, centerY) {
   const nodes = []
@@ -157,7 +163,7 @@ function curvePath(x1, y1, x2, y2) {
 }
 
 // Render one mind map
-function renderCategory(svg, data, offsetX) {
+function renderCategory(svg, data, offsetX, categoryName) {
   const g = svg.append('g').attr('transform', `translate(${offsetX}, 0)`)
 
   // Links
@@ -180,7 +186,11 @@ function renderCategory(svg, data, offsetX) {
     .data(data.nodes)
     .enter()
     .append('g')
+    .attr('class', d => d.level === 2 ? 'tertiary-node' : '')
     .attr('transform', d => `translate(${d.x}, ${d.y})`)
+    .attr('data-label', d => d.label)
+    .attr('data-category', categoryName)
+    .attr('data-id', d => `${categoryName}-${d.id}`)
 
   node.append('circle')
     .attr('r', d => d.level === 0 ? 35 : d.level === 1 ? 22 : 14)
@@ -194,10 +204,24 @@ function renderCategory(svg, data, offsetX) {
     .attr('font-weight', d => d.level === 0 ? 'bold' : 'normal')
     .attr('fill', 'white')
     .attr('text-anchor', 'middle')
-    .style('pointer-events', 'all')
-    .style('user-select', 'text')
-    .style('-webkit-user-select', 'text')
-    .style('cursor', 'text')
+    .style('pointer-events', d => d.level === 2 ? 'all' : 'none')
+
+  // Add click handlers for tertiary nodes
+  node.filter(d => d.level === 2)
+    .style('cursor', 'pointer')
+    .on('click', function(event, d) {
+      event.stopPropagation()
+      handleNodeClick(this, d)
+    })
+
+  // Store references to tertiary nodes
+  node.filter(d => d.level === 2).each(function(d) {
+    allTertiaryNodes.push({
+      element: this,
+      data: d,
+      offsetX: offsetX
+    })
+  })
 }
 
 // Main render
@@ -205,7 +229,13 @@ function renderMindMap(data) {
   const container = document.getElementById('mindmap-container')
   container.innerHTML = ''
 
-  const width = window.innerWidth
+  // Reset selection state
+  selectedNodes = []
+  allTertiaryNodes = []
+
+  // Calculate sidebar width to match CSS clamp(180px, 15vw, 280px)
+  const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
+  const width = window.innerWidth - sidebarWidth
   const height = window.innerHeight - 70
   const sectionWidth = width / 3
 
@@ -218,8 +248,140 @@ function renderMindMap(data) {
 
   categories.forEach((cat, i) => {
     const mapData = buildCategoryMap(data[cat], sectionWidth / 2, height / 2)
-    renderCategory(svg, mapData, i * sectionWidth)
+    renderCategory(svg, mapData, i * sectionWidth, cat)
   })
+
+  // Show sidebar
+  document.getElementById('mash-sidebar').classList.remove('hidden')
+}
+
+// Current staging element for building a mash
+let currentStagingEl = null
+
+// Handle tertiary node click
+function handleNodeClick(element, data) {
+  if (mashGroups.length >= MAX_MASHES) return
+
+  const nodeId = element.getAttribute('data-id')
+  const isSelected = selectedNodes.find(n => n.id === nodeId)
+
+  if (isSelected) {
+    // Unselect
+    selectedNodes = selectedNodes.filter(n => n.id !== nodeId)
+    d3.select(element).classed('selected', false)
+    updateStagingText()
+  } else {
+    // Select (if under 3)
+    if (selectedNodes.length < 3) {
+      selectedNodes.push({
+        id: nodeId,
+        label: data.label,
+        element: element
+      })
+      d3.select(element).classed('selected', true)
+      updateStagingText()
+
+      // If we have 3, finalize the mash
+      if (selectedNodes.length === 3) {
+        finalizeMash()
+      }
+    }
+  }
+}
+
+// Update the staging text in sidebar
+function updateStagingText() {
+  const listEl = document.getElementById('mash-list')
+
+  if (selectedNodes.length === 0) {
+    // Remove staging element if no selections
+    if (currentStagingEl) {
+      currentStagingEl.remove()
+      currentStagingEl = null
+    }
+    return
+  }
+
+  // Create staging element if needed
+  if (!currentStagingEl) {
+    currentStagingEl = document.createElement('div')
+    currentStagingEl.className = 'mash-group staging'
+    listEl.appendChild(currentStagingEl)
+  }
+
+  // Update text with current selections
+  const labels = selectedNodes.map(n => n.label)
+  currentStagingEl.innerHTML = labels.join('<span> + </span>')
+}
+
+// Finalize the current mash
+function finalizeMash() {
+  const labels = selectedNodes.map(n => n.label)
+  mashGroups.push(labels)
+
+  // Convert staging to final
+  if (currentStagingEl) {
+    currentStagingEl.classList.remove('staging')
+    currentStagingEl = null
+  }
+
+  // Check max
+  if (mashGroups.length >= MAX_MASHES) {
+    document.getElementById('max-note').classList.remove('hidden')
+  }
+
+  // Unhighlight all nodes
+  selectedNodes.forEach(n => {
+    d3.select(n.element).classed('selected', false)
+  })
+  selectedNodes = []
+}
+
+// Randomize - pick 3 random tertiary nodes with highlight
+function randomizeMash() {
+  if (mashGroups.length >= MAX_MASHES) return
+  if (allTertiaryNodes.length < 3) return
+
+  // Clear any current selection
+  selectedNodes.forEach(n => {
+    d3.select(n.element).classed('selected', false)
+  })
+  if (currentStagingEl) {
+    currentStagingEl.remove()
+    currentStagingEl = null
+  }
+  selectedNodes = []
+
+  // Pick 3 random unique nodes
+  const shuffled = [...allTertiaryNodes].sort(() => Math.random() - 0.5)
+  const picked = shuffled.slice(0, 3)
+
+  // Highlight picked nodes
+  picked.forEach(node => {
+    d3.select(node.element).classed('random-highlight', true)
+  })
+
+  // Add text to sidebar immediately
+  const labels = picked.map(n => n.data.label)
+  mashGroups.push(labels)
+
+  const listEl = document.getElementById('mash-list')
+  const groupEl = document.createElement('div')
+  groupEl.className = 'mash-group'
+  groupEl.innerHTML = labels.join('<span> + </span>')
+  listEl.appendChild(groupEl)
+
+  // Check max
+  if (mashGroups.length >= MAX_MASHES) {
+    document.getElementById('max-note').classList.remove('hidden')
+  }
+
+  // After 5 seconds, remove highlight
+  setTimeout(() => {
+    picked.forEach(node => {
+      d3.select(node.element).classed('random-highlight', false)
+    })
+  }, 5000)
 }
 
 // Animation
@@ -302,6 +464,9 @@ function showMindMap() {
 }
 
 function init() {
+  // Randomize button
+  document.getElementById('randomize-btn').addEventListener('click', randomizeMash)
+
   document.getElementById('generate-btn').addEventListener('click', async () => {
     const apiKey = document.getElementById('api-key').value.trim()
     const engagement = document.getElementById('keyword-engagement').value.trim()

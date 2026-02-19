@@ -32,6 +32,22 @@ body {
   position: relative;
 }
 
+/* Dev mode badge */
+#dev-mode-badge {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 200;
+  padding: 0.3rem 0.7rem;
+  background: rgba(250, 112, 154, 0.2);
+  border: 1px solid rgba(250, 112, 154, 0.5);
+  border-radius: 6px;
+  color: #fa709a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 /* API Key - small corner input */
 .api-key-corner {
   position: fixed;

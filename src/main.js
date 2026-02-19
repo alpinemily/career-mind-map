@@ -1,5 +1,9 @@
 import './style.css'
 import * as d3 from 'd3'
+import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
+
+// Dev mode: add ?dev to the URL to skip all API calls and use mock data
+const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
 
 // Claude API helper
 async function callClaudeAPI(apiKey, prompt) {
@@ -455,7 +459,7 @@ Make sure to return one idea for each grouping provided.`
 // Generate career ideas from Claude API
 async function generateCareerIdeas() {
   const apiKey = document.getElementById('api-key').value.trim()
-  if (!apiKey) {
+  if (!DEV_MODE && !apiKey) {
     alert('Please enter your Claude API key')
     return
   }
@@ -466,22 +470,26 @@ async function generateCareerIdeas() {
   btn.disabled = true
   btn.textContent = 'Generating...'
 
-  const groupingsText = mashGroups.map((group, i) =>
-    `${i + 1}. "${group.join('" + "')}"`
-  ).join('\n')
-
-  const prompt = buildCareerPrompt(selectedTone, groupingsText)
-
   try {
-    const response = await callClaudeAPI(apiKey, prompt)
-    let jsonStr = response.trim()
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+    let careerIdeas
+    if (DEV_MODE) {
+      await new Promise(r => setTimeout(r, 600))
+      careerIdeas = getMockCareerIdeas(mashGroups, selectedTone)
+    } else {
+      const groupingsText = mashGroups.map((group, i) =>
+        `${i + 1}. "${group.join('" + "')}"`
+      ).join('\n')
+      const prompt = buildCareerPrompt(selectedTone, groupingsText)
+      const response = await callClaudeAPI(apiKey, prompt)
+      let jsonStr = response.trim()
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+      }
+      careerIdeas = JSON.parse(jsonStr).careerIdeas
     }
-    const data = JSON.parse(jsonStr)
 
     // Create career cards section below the page (with share button)
-    createCareerCardsSection(data.careerIdeas, mashGroups)
+    createCareerCardsSection(careerIdeas, mashGroups)
 
     // Hide the entire sidebar
     document.getElementById('mash-sidebar').classList.add('hidden')
@@ -524,7 +532,7 @@ async function generateCareerIdeas() {
 }
 
 // Create career cards section below the page
-function createCareerCardsSection(careerIdeas, groups) {
+function createCareerCardsSection(careerIdeas, groups, { showToneSwitch = true } = {}) {
   // Remove existing section and scroll arrow if any
   const existing = document.getElementById('career-cards-section')
   if (existing) existing.remove()
@@ -596,11 +604,13 @@ function createCareerCardsSection(careerIdeas, groups) {
   const alternateTone = selectedTone === 'serious' ? 'playful' : 'serious'
   const toneLabel = alternateTone === 'playful' ? 'Playful' : 'Serious'
 
-  const switchToneBtn = document.createElement('button')
-  switchToneBtn.id = 'switch-tone-btn'
-  switchToneBtn.textContent = `Try ${toneLabel} ideas instead`
-  switchToneBtn.addEventListener('click', () => regenerateWithAlternateTone(alternateTone, groups))
-  actionsDiv.appendChild(switchToneBtn)
+  if (showToneSwitch) {
+    const switchToneBtn = document.createElement('button')
+    switchToneBtn.id = 'switch-tone-btn'
+    switchToneBtn.textContent = `Try ${toneLabel} ideas instead`
+    switchToneBtn.addEventListener('click', () => regenerateWithAlternateTone(alternateTone, groups))
+    actionsDiv.appendChild(switchToneBtn)
+  }
 
   const startOverBtn = document.createElement('button')
   startOverBtn.id = 'start-over-btn'
@@ -608,7 +618,7 @@ function createCareerCardsSection(careerIdeas, groups) {
   startOverBtn.addEventListener('click', () => {
     document.body.style.transition = 'opacity 0.4s ease-out'
     document.body.style.opacity = '0'
-    setTimeout(() => window.location.reload(), 400)
+    setTimeout(resetApp, 400) // wait for fade-out to finish, then reset while invisible
   })
   actionsDiv.appendChild(startOverBtn)
 
@@ -635,7 +645,7 @@ function createCareerCardsSection(careerIdeas, groups) {
 // Regenerate career cards with the alternate tone
 async function regenerateWithAlternateTone(alternateTone, groups) {
   const apiKey = document.getElementById('api-key').value.trim()
-  if (!apiKey) {
+  if (!DEV_MODE && !apiKey) {
     alert('Please enter your Claude API key')
     return
   }
@@ -646,22 +656,26 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
     btn.textContent = 'Generating...'
   }
 
-  const groupingsText = groups.map((group, i) =>
-    `${i + 1}. "${group.join('" + "')}"`
-  ).join('\n')
-
-  const prompt = buildCareerPrompt(alternateTone, groupingsText)
-
   try {
-    const response = await callClaudeAPI(apiKey, prompt)
-    let jsonStr = response.trim()
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+    let careerIdeas
+    if (DEV_MODE) {
+      await new Promise(r => setTimeout(r, 600))
+      careerIdeas = getMockCareerIdeas(groups, alternateTone)
+    } else {
+      const groupingsText = groups.map((group, i) =>
+        `${i + 1}. "${group.join('" + "')}"`
+      ).join('\n')
+      const prompt = buildCareerPrompt(alternateTone, groupingsText)
+      const response = await callClaudeAPI(apiKey, prompt)
+      let jsonStr = response.trim()
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+      }
+      careerIdeas = JSON.parse(jsonStr).careerIdeas
     }
-    const data = JSON.parse(jsonStr)
 
     selectedTone = alternateTone
-    createCareerCardsSection(data.careerIdeas, groups)
+    createCareerCardsSection(careerIdeas, groups, { showToneSwitch: false })
 
     // Scroll to career section since user is already past the mind map
     document.getElementById('career-cards-section')?.scrollIntoView({ behavior: 'smooth' })
@@ -855,6 +869,56 @@ function showMindMap() {
   })
 }
 
+// Called after the fade-out completes. Resets all state and DOM while the page
+// is invisible (opacity 0), then fades back in — no reload, no flash.
+function resetApp() {
+  selectedNodes = []    // clear any in-progress node selection
+  mashGroups = []       // clear all saved word groupings
+  allTertiaryNodes = [] // clear the node reference list used by randomize
+  selectedTone = 'serious' // reset tone to default
+
+  // tear down sections that were created dynamically during the session
+  document.getElementById('career-cards-section')?.remove()
+  document.getElementById('scroll-arrow')?.remove()
+
+  // clear the SVG and re-hide the mind map container
+  const mindmapContainer = document.getElementById('mindmap-container')
+  mindmapContainer.innerHTML = ''
+  mindmapContainer.classList.add('hidden')
+  mindmapContainer.classList.remove('visible') // 'visible' drives the opacity transition
+
+  // collapse the sidebar back to its initial hidden state
+  document.getElementById('mash-sidebar').classList.add('hidden')
+  document.getElementById('mash-list').innerHTML = ''        // remove all mash group pills
+  document.getElementById('generate-section').classList.add('hidden') // hide generate btn
+  document.getElementById('max-note').classList.add('hidden')
+
+  // clear inline styles set during the session so CSS classes take over again
+  const keywordsDisplay = document.getElementById('keywords-display')
+  keywordsDisplay.classList.add('hidden')
+  keywordsDisplay.style.opacity = ''    // was set to '0' during fade-out
+  keywordsDisplay.style.transition = '' // was set inline during fade-out
+  document.getElementById('instruction-text').classList.add('hidden')
+
+  // reset tone toggle buttons back to Serious active
+  document.querySelectorAll('.tone-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tone === 'serious')
+  })
+
+  // unhide the landing form and re-enable the generate button
+  const formContainer = document.getElementById('form-container')
+  formContainer.classList.remove('hidden')
+  formContainer.style.visibility = '' // was set to 'hidden' during the keyword animation
+  const generateBtn = document.getElementById('generate-btn')
+  generateBtn.style.display = 'block'
+  generateBtn.disabled = false
+
+  // snap to top while still invisible so the form is in view before fade-in starts
+  window.scrollTo(0, 0)
+  document.body.style.transition = 'opacity 0.4s ease-in'
+  document.body.style.opacity = '1'
+}
+
 function init() {
   // Randomize button
   document.getElementById('randomize-btn').addEventListener('click', randomizeMash)
@@ -871,13 +935,30 @@ function init() {
   // Generate career ideas button
   document.getElementById('generate-careers-btn').addEventListener('click', generateCareerIdeas)
 
+  // Dev mode setup
+  if (DEV_MODE) {
+    // Badge
+    const badge = document.createElement('div')
+    badge.id = 'dev-mode-badge'
+    badge.textContent = 'DEV MODE'
+    document.getElementById('app').appendChild(badge)
+
+    // Hide API key input since it's not needed
+    document.querySelector('.api-key-corner').style.display = 'none'
+
+    // Pre-fill inputs so user can click straight through
+    document.getElementById('keyword-engagement').value = 'balancing the budget'
+    document.getElementById('keyword-energy').value = 'teaching'
+    document.getElementById('keyword-flow').value = 'social dance'
+  }
+
   document.getElementById('generate-btn').addEventListener('click', async () => {
     const apiKey = document.getElementById('api-key').value.trim()
     const engagement = document.getElementById('keyword-engagement').value.trim()
     const energy = document.getElementById('keyword-energy').value.trim()
     const flow = document.getElementById('keyword-flow').value.trim()
 
-    if (!apiKey) return alert('Please enter your Claude API key (top right corner)')
+    if (!DEV_MODE && !apiKey) return alert('Please enter your Claude API key (top right corner)')
     if (!engagement || !energy || !flow) return alert('Please fill in all three keyword fields')
 
     const btn = document.getElementById('generate-btn')
@@ -890,7 +971,17 @@ function init() {
     loading.classList.remove('hidden')
 
     try {
-      const data = await getAllAssociations(apiKey, engagement, energy, flow)
+      let data
+      if (DEV_MODE) {
+        await new Promise(r => setTimeout(r, 500))
+        data = {
+          engagement: { ...MOCK_ASSOCIATIONS.engagement, keyword: engagement },
+          energy:     { ...MOCK_ASSOCIATIONS.energy,     keyword: energy     },
+          flow:       { ...MOCK_ASSOCIATIONS.flow,       keyword: flow       }
+        }
+      } else {
+        data = await getAllAssociations(apiKey, engagement, energy, flow)
+      }
       loading.classList.add('hidden')
       await showMindMap()
       renderMindMap(data)

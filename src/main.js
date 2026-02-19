@@ -413,18 +413,27 @@ async function generateCareerIdeas() {
     `${i + 1}. "${group.join('" + "')}"`
   ).join('\n')
 
-  const prompt = `You are a wildly creative career counselor who thinks outside the box. Given combinations of 3 words, generate fun, unexpected, and imaginative career ideas that playfully combine all three concepts.
+  const prompt = `You are a creative career counselor who helps people discover unexpected but REALISTIC career paths. Given combinations of 3 words, generate imaginative career ideas that are inspired by these concepts.
+
+IMPORTANT GUIDELINES:
+- The career must be a REAL, implementable job or business that could exist in the real world
+- Do NOT literally combine the 3 words into a description - instead, let them INSPIRE a creative but practical career
+- Avoid overly whimsical or impossible ideas like "GPS tracking emotional journeys through bike poetry"
+- Think of actual jobs, businesses, or services someone could realistically start or pursue
+- The career should be creative and unexpected, but grounded enough that someone could actually do it
+
+Example: If words were "pirates, sports, kids" - a good answer would be "Adventure Sailing Instructor" with description "Run youth sailing camps with treasure hunt adventures" - NOT "Pirate-themed emotional water journey facilitator"
 
 Here are the word groupings:
 ${groupingsText}
 
-For each grouping, create ONE creative career idea that combines all 3 words in an unexpected way. Think quirky, inventive, and delightful - like "Pirate Surf Camp for Kids" if the words were "pirates, sports, kids". The ideas should be fun and inspiring, not boring corporate job titles.
+For each grouping, create ONE creative but realistic career idea. Provide a short, catchy career title (3-6 words) and a brief practical description (1 sentence explaining what you'd actually do).
 
 Return ONLY valid JSON in this exact format:
 {
   "careerIdeas": [
-    {"groupIndex": 0, "idea": "your creative career idea here"},
-    {"groupIndex": 1, "idea": "your creative career idea here"}
+    {"groupIndex": 0, "title": "Career Title Here", "description": "Brief description of what this job actually involves."},
+    {"groupIndex": 1, "title": "Career Title Here", "description": "Brief description of what this job actually involves."}
   ]
 }
 
@@ -438,24 +447,18 @@ Make sure to return one idea for each grouping provided.`
     }
     const data = JSON.parse(jsonStr)
 
-    // Add career ideas to the mash groups in the sidebar
-    const mashElements = document.querySelectorAll('#mash-list .mash-group')
-    data.careerIdeas.forEach(item => {
-      const mashEl = mashElements[item.groupIndex]
-      if (mashEl && !mashEl.querySelector('.career-idea')) {
-        const ideaEl = document.createElement('div')
-        ideaEl.className = 'career-idea'
-        ideaEl.textContent = item.idea
-        mashEl.appendChild(ideaEl)
-      }
-    })
+    // Create career cards section below the page (with share button)
+    createCareerCardsSection(data.careerIdeas, mashGroups)
 
-    // Hide generate button, show share button
-    document.getElementById('generate-section').classList.add('hidden')
-    document.getElementById('share-section').classList.remove('hidden')
+    // Hide the entire sidebar
+    document.getElementById('mash-sidebar').classList.add('hidden')
 
-    // Disable randomize after generating
-    document.getElementById('randomize-btn').disabled = true
+    // Resize mindmap to use full width now that sidebar is gone
+    const container = document.getElementById('mindmap-container')
+    const svg = container.querySelector('svg')
+    if (svg) {
+      svg.setAttribute('width', window.innerWidth)
+    }
 
   } catch (error) {
     console.error(error)
@@ -465,50 +468,127 @@ Make sure to return one idea for each grouping provided.`
   }
 }
 
+// Create career cards section below the page
+function createCareerCardsSection(careerIdeas, groups) {
+  // Remove existing section if any
+  const existing = document.getElementById('career-cards-section')
+  if (existing) existing.remove()
+
+  // Create scroll arrow
+  const arrow = document.createElement('div')
+  arrow.id = 'scroll-arrow'
+  arrow.innerHTML = `
+    <span>Scroll to see your career ideas</span>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 5v14M5 12l7 7 7-7"/>
+    </svg>
+  `
+  document.getElementById('app').appendChild(arrow)
+
+  // Create section
+  const section = document.createElement('div')
+  section.id = 'career-cards-section'
+
+  const title = document.createElement('h2')
+  title.textContent = 'Your Career Ideas'
+  section.appendChild(title)
+
+  const cardsContainer = document.createElement('div')
+  cardsContainer.className = 'career-cards-container'
+
+  careerIdeas.forEach((idea, i) => {
+    const card = document.createElement('div')
+    card.className = 'career-card'
+
+    const words = document.createElement('div')
+    words.className = 'card-words'
+    words.innerHTML = groups[idea.groupIndex].join('<span> + </span>')
+
+    const titleEl = document.createElement('h3')
+    titleEl.className = 'card-title'
+    titleEl.textContent = idea.title || idea.idea
+
+    const desc = document.createElement('p')
+    desc.className = 'card-description'
+    desc.textContent = idea.description || ''
+
+    card.appendChild(words)
+    card.appendChild(titleEl)
+    if (idea.description) card.appendChild(desc)
+    cardsContainer.appendChild(card)
+  })
+
+  section.appendChild(cardsContainer)
+
+  // Add share button at the bottom
+  const shareBtn = document.createElement('button')
+  shareBtn.id = 'share-results-btn'
+  shareBtn.textContent = 'Share results'
+  shareBtn.addEventListener('click', shareResults)
+  section.appendChild(shareBtn)
+
+  document.getElementById('app').appendChild(section)
+
+  // Scroll to arrow after a moment
+  setTimeout(() => {
+    arrow.classList.add('visible')
+  }, 300)
+
+  // Remove arrow when user scrolls past it
+  const handleScroll = () => {
+    if (window.scrollY > 100) {
+      arrow.classList.add('hidden')
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }
+  window.addEventListener('scroll', handleScroll)
+}
+
 // Share results as image
 async function shareResults() {
-  const sidebar = document.getElementById('mash-sidebar')
-
-  // Create a clone for capturing
-  const clone = sidebar.cloneNode(true)
-  clone.style.position = 'fixed'
-  clone.style.left = '-9999px'
-  clone.style.width = '300px'
-  clone.style.height = 'auto'
-  clone.style.maxHeight = 'none'
-  clone.style.padding = '1.5rem'
-  clone.style.background = '#1a1a2e'
-
-  // Remove buttons from clone
-  clone.querySelectorAll('button').forEach(btn => btn.remove())
-  clone.querySelectorAll('.generate-hint').forEach(el => el.remove())
-  clone.querySelectorAll('#max-note').forEach(el => el.remove())
-  clone.querySelectorAll('#generate-section').forEach(el => el.remove())
-  clone.querySelectorAll('#share-section').forEach(el => el.remove())
-
-  // Add title
-  const title = clone.querySelector('h3')
-  if (title) {
-    title.textContent = 'My Career Mind Map Ideas'
-    title.style.marginBottom = '1rem'
+  const btn = document.getElementById('share-results-btn')
+  if (btn) {
+    btn.disabled = true
+    btn.textContent = 'Generating image...'
   }
 
-  document.body.appendChild(clone)
-
   try {
-    // Use html2canvas dynamically
-    const script = document.createElement('script')
-    script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js'
-    document.head.appendChild(script)
+    // Load html2canvas if not already loaded
+    if (!window.html2canvas) {
+      const script = document.createElement('script')
+      script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js'
+      document.head.appendChild(script)
+      await new Promise(resolve => script.onload = resolve)
+    }
 
-    await new Promise(resolve => script.onload = resolve)
+    // Hide UI elements we don't want in the screenshot
+    const scrollArrow = document.getElementById('scroll-arrow')
+    const keywordsDisplay = document.getElementById('keywords-display')
+    const apiKeyCorner = document.querySelector('.api-key-corner')
+    const shareBtn = document.getElementById('share-results-btn')
 
-    const canvas = await html2canvas(clone, {
+    if (scrollArrow) scrollArrow.style.display = 'none'
+    if (apiKeyCorner) apiKeyCorner.style.display = 'none'
+    if (shareBtn) shareBtn.style.display = 'none'
+
+    // Capture the entire app including mind maps and career cards
+    const app = document.getElementById('app')
+
+    const canvas = await html2canvas(app, {
       backgroundColor: '#1a1a2e',
-      scale: 2
+      scale: 2,
+      width: window.innerWidth,
+      height: app.scrollHeight,
+      windowWidth: window.innerWidth,
+      windowHeight: app.scrollHeight,
+      y: 0,
+      scrollY: -window.scrollY
     })
 
-    clone.remove()
+    // Restore hidden elements
+    if (scrollArrow) scrollArrow.style.display = ''
+    if (apiKeyCorner) apiKeyCorner.style.display = ''
+    if (shareBtn) shareBtn.style.display = ''
 
     // Convert to blob and download
     canvas.toBlob(blob => {
@@ -520,10 +600,18 @@ async function shareResults() {
       URL.revokeObjectURL(url)
     }, 'image/png')
 
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = 'Share results'
+    }
+
   } catch (error) {
     console.error(error)
-    clone.remove()
     alert('Error generating image. Please try again.')
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = 'Share results'
+    }
   }
 }
 
@@ -612,9 +700,6 @@ function init() {
 
   // Generate career ideas button
   document.getElementById('generate-careers-btn').addEventListener('click', generateCareerIdeas)
-
-  // Share button
-  document.getElementById('share-btn').addEventListener('click', shareResults)
 
   document.getElementById('generate-btn').addEventListener('click', async () => {
     const apiKey = document.getElementById('api-key').value.trim()

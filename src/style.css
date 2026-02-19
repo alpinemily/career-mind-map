@@ -27,7 +27,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 1.5rem;
   position: relative;
 }
@@ -248,14 +248,12 @@ button.hidden {
 
 /* Mind map container */
 #mindmap-container {
-  position: fixed;
-  top: 0;
-  left: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100vh - 70px);
   z-index: 10;
   opacity: 0;
   transition: opacity 0.8s ease-in;
+  flex-shrink: 0;
 }
 
 #mindmap-container.visible {
@@ -422,42 +420,132 @@ button.hidden {
   line-height: 1.4;
 }
 
-/* Career idea pills - colorful variations */
-.career-idea {
-  border-radius: 12px;
-  padding: 0.4rem 0.6rem;
-  font-size: 0.7rem;
-  color: white;
-  margin-top: 0.4rem;
-  line-height: 1.3;
-  font-weight: 500;
+
+
+/* Scroll arrow */
+#scroll-arrow {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  background: rgba(26, 26, 46, 0.9);
+  padding: 0.75rem 1.5rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.mash-group:nth-child(10n+1) .career-idea { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.mash-group:nth-child(10n+2) .career-idea { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-.mash-group:nth-child(10n+3) .career-idea { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.mash-group:nth-child(10n+4) .career-idea { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.mash-group:nth-child(10n+5) .career-idea { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-.mash-group:nth-child(10n+6) .career-idea { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
-.mash-group:nth-child(10n+7) .career-idea { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
-.mash-group:nth-child(10n+8) .career-idea { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #333; }
-.mash-group:nth-child(10n+9) .career-idea { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
-.mash-group:nth-child(10n+10) .career-idea { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #333; }
-
-/* Share section */
-#share-section {
-  padding-top: 0.5rem;
-  flex-shrink: 0;
+#scroll-arrow.visible {
+  opacity: 1;
 }
 
-#share-section.hidden {
-  display: none;
+#scroll-arrow.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
-#share-btn {
+#scroll-arrow svg {
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+
+/* Career cards section */
+#career-cards-section {
   width: 100%;
-  padding: 0.5rem 0.8rem;
-  font-size: 0.75rem;
+  min-height: 100vh;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+}
+
+#career-cards-section h2 {
+  font-size: 2rem;
+  margin: 0 0 2rem 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.career-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.career-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.career-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
+}
+
+.card-words {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.75rem;
+}
+
+.card-words span {
+  opacity: 0.5;
+  margin: 0 0.3rem;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.career-card:nth-child(3n+2) .card-title {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.career-card:nth-child(3n+3) .card-title {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.card-description {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Share button at bottom of career cards */
+#share-results-btn {
+  margin-top: 2rem;
+  padding: 0.75rem 2.5rem;
+  font-size: 1rem;
   background: linear-gradient(135deg, #30cfd0 0%, #43e97b 100%);
 }
 

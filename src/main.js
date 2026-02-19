@@ -163,9 +163,49 @@ function curvePath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${x2} ${y2}`
 }
 
-// Render one mind map
-function renderCategory(svg, data, offsetX, categoryName) {
-  const g = svg.append('g').attr('transform', `translate(${offsetX}, 0)`)
+// Main render
+function renderMindMap(data) {
+  const container = document.getElementById('mindmap-container')
+  container.innerHTML = ''
+
+  // Reset selection state
+  selectedNodes = []
+  allTertiaryNodes = []
+
+  // Calculate sidebar width to match CSS clamp(180px, 15vw, 280px)
+  const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
+  const availableWidth = window.innerWidth - sidebarWidth
+  const height = window.innerHeight - 70
+  const sectionWidth = availableWidth / 3
+  const verticalCenter = height / 2
+
+  // Create SVG that fills available width (excluding sidebar)
+  const svg = d3.select(container)
+    .append('svg')
+    .attr('width', availableWidth)
+    .attr('height', height)
+    .attr('id', 'mindmap-svg')
+
+  // Create main group for all content (for animation)
+  const mainGroup = svg.append('g').attr('class', 'main-group')
+
+  const categories = ['engagement', 'energy', 'flow']
+
+  categories.forEach((cat, i) => {
+    const mapData = buildCategoryMap(data[cat], sectionWidth / 2, verticalCenter)
+    renderCategoryInGroup(mainGroup, mapData, i * sectionWidth, cat)
+  })
+
+  // Show sidebar
+  document.getElementById('mash-sidebar').classList.remove('hidden')
+
+  // Show instruction text
+  document.getElementById('instruction-text').classList.remove('hidden')
+}
+
+// Render category into a group (for animation support)
+function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
+  const g = parentG.append('g').attr('transform', `translate(${offsetX}, 0)`)
 
   // Links
   g.selectAll('.link')
@@ -223,41 +263,6 @@ function renderCategory(svg, data, offsetX, categoryName) {
       offsetX: offsetX
     })
   })
-}
-
-// Main render
-function renderMindMap(data) {
-  const container = document.getElementById('mindmap-container')
-  container.innerHTML = ''
-
-  // Reset selection state
-  selectedNodes = []
-  allTertiaryNodes = []
-
-  // Calculate sidebar width to match CSS clamp(180px, 15vw, 280px)
-  const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
-  const width = window.innerWidth - sidebarWidth
-  const height = window.innerHeight - 70
-  const sectionWidth = width / 3
-  const verticalCenter = height / 2 + 20 // Offset down slightly for visual balance
-
-  const svg = d3.select(container)
-    .append('svg')
-    .attr('width', width)
-    .attr('height', height)
-
-  const categories = ['engagement', 'energy', 'flow']
-
-  categories.forEach((cat, i) => {
-    const mapData = buildCategoryMap(data[cat], sectionWidth / 2, verticalCenter)
-    renderCategory(svg, mapData, i * sectionWidth, cat)
-  })
-
-  // Show sidebar
-  document.getElementById('mash-sidebar').classList.remove('hidden')
-
-  // Show instruction text
-  document.getElementById('instruction-text').classList.remove('hidden')
 }
 
 // Current staging element for building a mash
@@ -399,28 +404,10 @@ function randomizeMash() {
   }, 5000)
 }
 
-// Generate career ideas from Claude API
-async function generateCareerIdeas() {
-  const apiKey = document.getElementById('api-key').value.trim()
-  if (!apiKey) {
-    alert('Please enter your Claude API key')
-    return
-  }
-
-  if (mashGroups.length === 0) return
-
-  const btn = document.getElementById('generate-careers-btn')
-  btn.disabled = true
-  btn.textContent = 'Generating...'
-
-  // Build the prompt
-  const groupingsText = mashGroups.map((group, i) =>
-    `${i + 1}. "${group.join('" + "')}"`
-  ).join('\n')
-
-  let prompt
-  if (selectedTone === 'zany') {
-    prompt = `You are a wildly creative career counselor who thinks outside the box. Given combinations of 3 words, generate fun, unexpected, and imaginative career ideas that playfully combine all three concepts.
+// Build career prompt for a given tone and groupings text
+function buildCareerPrompt(tone, groupingsText) {
+  if (tone === 'playful') {
+    return `You are a wildly creative career counselor who thinks outside the box. Given combinations of 3 words, generate fun, unexpected, and imaginative career ideas that playfully combine all three concepts.
 
 Here are the word groupings:
 ${groupingsText}
@@ -437,7 +424,7 @@ Return ONLY valid JSON in this exact format:
 
 Make sure to return one idea for each grouping provided.`
   } else {
-    prompt = `You are a creative career counselor who helps people discover unexpected but REALISTIC career paths. Given combinations of 3 words, generate imaginative career ideas that are inspired by these concepts.
+    return `You are a creative career counselor who helps people discover unexpected but REALISTIC career paths. Given combinations of 3 words, generate imaginative career ideas that are inspired by these concepts.
 
 IMPORTANT GUIDELINES:
 - The career must be a REAL, implementable job or business that could exist in the real world
@@ -463,6 +450,27 @@ Return ONLY valid JSON in this exact format:
 
 Make sure to return one idea for each grouping provided.`
   }
+}
+
+// Generate career ideas from Claude API
+async function generateCareerIdeas() {
+  const apiKey = document.getElementById('api-key').value.trim()
+  if (!apiKey) {
+    alert('Please enter your Claude API key')
+    return
+  }
+
+  if (mashGroups.length === 0) return
+
+  const btn = document.getElementById('generate-careers-btn')
+  btn.disabled = true
+  btn.textContent = 'Generating...'
+
+  const groupingsText = mashGroups.map((group, i) =>
+    `${i + 1}. "${group.join('" + "')}"`
+  ).join('\n')
+
+  const prompt = buildCareerPrompt(selectedTone, groupingsText)
 
   try {
     const response = await callClaudeAPI(apiKey, prompt)
@@ -478,10 +486,32 @@ Make sure to return one idea for each grouping provided.`
     // Hide the entire sidebar
     document.getElementById('mash-sidebar').classList.add('hidden')
 
-    // Resize mindmap to use full width now that sidebar is gone
+    // Fade out instruction text and keyword pills
+    const keywordsDisplay = document.getElementById('keywords-display')
+    if (keywordsDisplay) {
+      keywordsDisplay.style.transition = 'opacity 0.5s ease-out'
+      keywordsDisplay.style.opacity = '0'
+      setTimeout(() => {
+        keywordsDisplay.classList.add('hidden')
+      }, 500)
+    }
+
+    // Animate mindmap to center now that sidebar is gone
     const container = document.getElementById('mindmap-container')
     const svg = container.querySelector('svg')
     if (svg) {
+      const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
+      const shiftX = sidebarWidth / 2  // Shift content to center
+
+      // Animate the shift using the main group
+      const mainGroup = svg.querySelector('.main-group')
+      if (mainGroup) {
+        mainGroup.style.transition = 'transform 0.6s ease-out'
+        mainGroup.setAttribute('transform', `translate(${shiftX}, 0)`)
+      }
+
+      // Expand SVG width with transition
+      svg.style.transition = 'width 0.6s ease-out'
       svg.setAttribute('width', window.innerWidth)
     }
 
@@ -495,11 +525,13 @@ Make sure to return one idea for each grouping provided.`
 
 // Create career cards section below the page
 function createCareerCardsSection(careerIdeas, groups) {
-  // Remove existing section if any
+  // Remove existing section and scroll arrow if any
   const existing = document.getElementById('career-cards-section')
   if (existing) existing.remove()
+  const existingArrow = document.getElementById('scroll-arrow')
+  if (existingArrow) existingArrow.remove()
 
-  // Create scroll arrow
+  // Create scroll arrow (only show if user hasn't scrolled yet)
   const arrow = document.createElement('div')
   arrow.id = 'scroll-arrow'
   arrow.innerHTML = `
@@ -514,9 +546,21 @@ function createCareerCardsSection(careerIdeas, groups) {
   const section = document.createElement('div')
   section.id = 'career-cards-section'
 
+  // Header row: title on left, share button on right
+  const headerRow = document.createElement('div')
+  headerRow.className = 'career-section-header'
+
   const title = document.createElement('h2')
   title.textContent = 'Your Career Ideas'
-  section.appendChild(title)
+  headerRow.appendChild(title)
+
+  const shareBtn = document.createElement('button')
+  shareBtn.id = 'share-results-btn'
+  shareBtn.textContent = 'Share results'
+  shareBtn.addEventListener('click', shareResults)
+  headerRow.appendChild(shareBtn)
+
+  section.appendChild(headerRow)
 
   const cardsContainer = document.createElement('div')
   cardsContainer.className = 'career-cards-container'
@@ -545,28 +589,91 @@ function createCareerCardsSection(careerIdeas, groups) {
 
   section.appendChild(cardsContainer)
 
-  // Add share button at the bottom
-  const shareBtn = document.createElement('button')
-  shareBtn.id = 'share-results-btn'
-  shareBtn.textContent = 'Share results'
-  shareBtn.addEventListener('click', shareResults)
-  section.appendChild(shareBtn)
+  // Action buttons: switch tone + start over
+  const actionsDiv = document.createElement('div')
+  actionsDiv.className = 'career-actions'
+
+  const alternateTone = selectedTone === 'serious' ? 'playful' : 'serious'
+  const toneLabel = alternateTone === 'playful' ? 'Playful' : 'Serious'
+
+  const switchToneBtn = document.createElement('button')
+  switchToneBtn.id = 'switch-tone-btn'
+  switchToneBtn.textContent = `Try ${toneLabel} ideas instead`
+  switchToneBtn.addEventListener('click', () => regenerateWithAlternateTone(alternateTone, groups))
+  actionsDiv.appendChild(switchToneBtn)
+
+  const startOverBtn = document.createElement('button')
+  startOverBtn.id = 'start-over-btn'
+  startOverBtn.textContent = 'Start over'
+  startOverBtn.addEventListener('click', () => {
+    document.body.style.transition = 'opacity 0.4s ease-out'
+    document.body.style.opacity = '0'
+    setTimeout(() => window.location.reload(), 400)
+  })
+  actionsDiv.appendChild(startOverBtn)
+
+  section.appendChild(actionsDiv)
 
   document.getElementById('app').appendChild(section)
 
-  // Scroll to arrow after a moment
-  setTimeout(() => {
-    arrow.classList.add('visible')
-  }, 300)
+  // Only show scroll arrow if user hasn't scrolled to the career section yet
+  if (window.scrollY < 100) {
+    setTimeout(() => {
+      arrow.classList.add('visible')
+    }, 300)
 
-  // Remove arrow when user scrolls past it
-  const handleScroll = () => {
-    if (window.scrollY > 100) {
-      arrow.classList.add('hidden')
-      window.removeEventListener('scroll', handleScroll)
+    const handleScroll = () => {
+      if (window.scrollY > 100) {
+        arrow.classList.add('hidden')
+        window.removeEventListener('scroll', handleScroll)
+      }
+    }
+    window.addEventListener('scroll', handleScroll)
+  }
+}
+
+// Regenerate career cards with the alternate tone
+async function regenerateWithAlternateTone(alternateTone, groups) {
+  const apiKey = document.getElementById('api-key').value.trim()
+  if (!apiKey) {
+    alert('Please enter your Claude API key')
+    return
+  }
+
+  const btn = document.getElementById('switch-tone-btn')
+  if (btn) {
+    btn.disabled = true
+    btn.textContent = 'Generating...'
+  }
+
+  const groupingsText = groups.map((group, i) =>
+    `${i + 1}. "${group.join('" + "')}"`
+  ).join('\n')
+
+  const prompt = buildCareerPrompt(alternateTone, groupingsText)
+
+  try {
+    const response = await callClaudeAPI(apiKey, prompt)
+    let jsonStr = response.trim()
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+    }
+    const data = JSON.parse(jsonStr)
+
+    selectedTone = alternateTone
+    createCareerCardsSection(data.careerIdeas, groups)
+
+    // Scroll to career section since user is already past the mind map
+    document.getElementById('career-cards-section')?.scrollIntoView({ behavior: 'smooth' })
+  } catch (error) {
+    console.error(error)
+    alert(`Error generating ideas: ${error.message}`)
+    if (btn) {
+      btn.disabled = false
+      const label = alternateTone === 'playful' ? 'Playful' : 'Serious'
+      btn.textContent = `Try ${label} ideas instead`
     }
   }
-  window.addEventListener('scroll', handleScroll)
 }
 
 // Share results as image
@@ -591,11 +698,13 @@ async function shareResults() {
     const apiKeyCorner = document.querySelector('.api-key-corner')
     const shareBtn = document.getElementById('share-results-btn')
     const keywordsDisplay = document.getElementById('keywords-display')
+    const careerActions = document.querySelector('.career-actions')
 
     if (scrollArrow) scrollArrow.style.display = 'none'
     if (apiKeyCorner) apiKeyCorner.style.display = 'none'
     if (shareBtn) shareBtn.style.display = 'none'
     if (keywordsDisplay) keywordsDisplay.style.display = 'none'
+    if (careerActions) careerActions.style.display = 'none'
 
     // Get the two sections to capture
     const mindmapContainer = document.getElementById('mindmap-container')
@@ -640,6 +749,7 @@ async function shareResults() {
     if (apiKeyCorner) apiKeyCorner.style.display = ''
     if (shareBtn) shareBtn.style.display = ''
     if (keywordsDisplay) keywordsDisplay.style.display = ''
+    if (careerActions) careerActions.style.display = ''
 
     // Convert to blob and download
     combinedCanvas.toBlob(blob => {

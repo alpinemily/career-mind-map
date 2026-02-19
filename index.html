@@ -31,7 +31,7 @@
               type="text"
               id="keyword-engagement"
             />
-            <p class="input-example">e.g. balancing the budget, pitching a new idea</p>
+            <p class="input-example">e.g. balancing the budget, pitching a new idea, teaching a class</p>
           </div>
 
           <div class="input-group keyword-group">
@@ -41,17 +41,17 @@
               type="text"
               id="keyword-energy"
             />
-            <p class="input-example">e.g. art class, giving feedback to colleagues</p>
+            <p class="input-example">e.g. art class, giving feedback to colleagues, writing travel guides</p>
           </div>
 
           <div class="input-group keyword-group">
             <label for="keyword-flow">Flow</label>
-            <p class="input-hint">Pick an activity or experience where you got into a flow state</p>
+            <p class="input-hint">Pick an activity or experience where you get into a flow state</p>
             <input
               type="text"
               id="keyword-flow"
             />
-            <p class="input-example">e.g. speaking in front of a large audience, brainstorming creative ideas</p>
+            <p class="input-example">e.g. speaking to a large audience, brainstorming creative ideas, social dance</p>
           </div>
         </div>
 
@@ -66,9 +66,12 @@
 
       <!-- Keywords display at bottom after animation -->
       <div id="keywords-display" class="hidden">
-        <span id="display-engagement" class="keyword-pill"></span>
-        <span id="display-energy" class="keyword-pill"></span>
-        <span id="display-flow" class="keyword-pill"></span>
+        <p id="instruction-text" class="hidden">Choose groups of 3 words at a time from the edge nodes only</p>
+        <div class="keyword-pills">
+          <span id="display-engagement" class="keyword-pill"></span>
+          <span id="display-energy" class="keyword-pill"></span>
+          <span id="display-flow" class="keyword-pill"></span>
+        </div>
       </div>
 
       <!-- Single unified mind map container -->
@@ -79,8 +82,15 @@
         <h3>Mind Map Mashes</h3>
         <button id="randomize-btn">Randomize</button>
         <div id="mash-list"></div>
-        <p id="max-note" class="hidden">Maximum 10 mashes reached</p>
+        <p id="max-note" class="hidden">Maximum 8 mashes reached</p>
         <div id="generate-section" class="hidden">
+          <div class="tone-toggle">
+            <span class="tone-label">Tone:</span>
+            <div class="toggle-buttons">
+              <button type="button" class="tone-btn active" data-tone="serious">Serious</button>
+              <button type="button" class="tone-btn" data-tone="zany">Zany</button>
+            </div>
+          </div>
           <button id="generate-careers-btn">Generate career ideas</button>
           <p class="generate-hint">You can choose up to 10 groupings of words before clicking to proceed to the final step.</p>
         </div>

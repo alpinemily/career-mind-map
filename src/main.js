@@ -77,8 +77,9 @@ const colorPalette = [
 // Selection state
 let selectedNodes = []
 let mashGroups = []
-const MAX_MASHES = 10
+const MAX_MASHES = 8
 let allTertiaryNodes = [] // Store references to all tertiary node elements
+let selectedTone = 'serious' // Default tone
 
 // Build simple radial mind map for one category
 function buildCategoryMap(categoryData, centerX, centerY) {
@@ -238,6 +239,7 @@ function renderMindMap(data) {
   const width = window.innerWidth - sidebarWidth
   const height = window.innerHeight - 70
   const sectionWidth = width / 3
+  const verticalCenter = height / 2 + 20 // Offset down slightly for visual balance
 
   const svg = d3.select(container)
     .append('svg')
@@ -247,12 +249,15 @@ function renderMindMap(data) {
   const categories = ['engagement', 'energy', 'flow']
 
   categories.forEach((cat, i) => {
-    const mapData = buildCategoryMap(data[cat], sectionWidth / 2, height / 2)
+    const mapData = buildCategoryMap(data[cat], sectionWidth / 2, verticalCenter)
     renderCategory(svg, mapData, i * sectionWidth, cat)
   })
 
   // Show sidebar
   document.getElementById('mash-sidebar').classList.remove('hidden')
+
+  // Show instruction text
+  document.getElementById('instruction-text').classList.remove('hidden')
 }
 
 // Current staging element for building a mash
@@ -413,7 +418,26 @@ async function generateCareerIdeas() {
     `${i + 1}. "${group.join('" + "')}"`
   ).join('\n')
 
-  const prompt = `You are a creative career counselor who helps people discover unexpected but REALISTIC career paths. Given combinations of 3 words, generate imaginative career ideas that are inspired by these concepts.
+  let prompt
+  if (selectedTone === 'zany') {
+    prompt = `You are a wildly creative career counselor who thinks outside the box. Given combinations of 3 words, generate fun, unexpected, and imaginative career ideas that playfully combine all three concepts.
+
+Here are the word groupings:
+${groupingsText}
+
+For each grouping, create ONE creative career idea that combines all 3 words in an unexpected way. Think quirky, inventive, and delightful - like "Pirate Surf Camp for Kids" if the words were "pirates, sports, kids". The ideas should be fun and inspiring, not boring corporate job titles.
+
+Return ONLY valid JSON in this exact format:
+{
+  "careerIdeas": [
+    {"groupIndex": 0, "title": "Fun Career Title", "description": "A whimsical description of this creative career."},
+    {"groupIndex": 1, "title": "Fun Career Title", "description": "A whimsical description of this creative career."}
+  ]
+}
+
+Make sure to return one idea for each grouping provided.`
+  } else {
+    prompt = `You are a creative career counselor who helps people discover unexpected but REALISTIC career paths. Given combinations of 3 words, generate imaginative career ideas that are inspired by these concepts.
 
 IMPORTANT GUIDELINES:
 - The career must be a REAL, implementable job or business that could exist in the real world
@@ -438,6 +462,7 @@ Return ONLY valid JSON in this exact format:
 }
 
 Make sure to return one idea for each grouping provided.`
+  }
 
   try {
     const response = await callClaudeAPI(apiKey, prompt)
@@ -561,37 +586,63 @@ async function shareResults() {
       await new Promise(resolve => script.onload = resolve)
     }
 
-    // Hide UI elements we don't want in the screenshot
+    // Hide UI elements
     const scrollArrow = document.getElementById('scroll-arrow')
-    const keywordsDisplay = document.getElementById('keywords-display')
     const apiKeyCorner = document.querySelector('.api-key-corner')
     const shareBtn = document.getElementById('share-results-btn')
+    const keywordsDisplay = document.getElementById('keywords-display')
 
     if (scrollArrow) scrollArrow.style.display = 'none'
     if (apiKeyCorner) apiKeyCorner.style.display = 'none'
     if (shareBtn) shareBtn.style.display = 'none'
+    if (keywordsDisplay) keywordsDisplay.style.display = 'none'
 
-    // Capture the entire app including mind maps and career cards
-    const app = document.getElementById('app')
+    // Get the two sections to capture
+    const mindmapContainer = document.getElementById('mindmap-container')
+    const careerSection = document.getElementById('career-cards-section')
 
-    const canvas = await html2canvas(app, {
+    // Capture mind map (word webs)
+    const mindmapCanvas = await html2canvas(mindmapContainer, {
       backgroundColor: '#1a1a2e',
       scale: 2,
-      width: window.innerWidth,
-      height: app.scrollHeight,
-      windowWidth: window.innerWidth,
-      windowHeight: app.scrollHeight,
-      y: 0,
-      scrollY: -window.scrollY
+      useCORS: true,
+      logging: false
     })
+
+    // Capture career cards section
+    const careerCanvas = await html2canvas(careerSection, {
+      backgroundColor: '#1a1a2e',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    })
+
+    // Combine the two canvases vertically
+    const combinedCanvas = document.createElement('canvas')
+    const ctx = combinedCanvas.getContext('2d')
+    combinedCanvas.width = Math.max(mindmapCanvas.width, careerCanvas.width)
+    combinedCanvas.height = mindmapCanvas.height + careerCanvas.height
+
+    // Fill background
+    ctx.fillStyle = '#1a1a2e'
+    ctx.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height)
+
+    // Draw mind map at top (centered if narrower)
+    const mindmapX = (combinedCanvas.width - mindmapCanvas.width) / 2
+    ctx.drawImage(mindmapCanvas, mindmapX, 0)
+
+    // Draw career cards below (centered if narrower)
+    const careerX = (combinedCanvas.width - careerCanvas.width) / 2
+    ctx.drawImage(careerCanvas, careerX, mindmapCanvas.height)
 
     // Restore hidden elements
     if (scrollArrow) scrollArrow.style.display = ''
     if (apiKeyCorner) apiKeyCorner.style.display = ''
     if (shareBtn) shareBtn.style.display = ''
+    if (keywordsDisplay) keywordsDisplay.style.display = ''
 
     // Convert to blob and download
-    canvas.toBlob(blob => {
+    combinedCanvas.toBlob(blob => {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -697,6 +748,15 @@ function showMindMap() {
 function init() {
   // Randomize button
   document.getElementById('randomize-btn').addEventListener('click', randomizeMash)
+
+  // Tone toggle buttons
+  document.querySelectorAll('.tone-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      selectedTone = btn.dataset.tone
+    })
+  })
 
   // Generate career ideas button
   document.getElementById('generate-careers-btn').addEventListener('click', generateCareerIdeas)

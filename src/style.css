@@ -395,3 +395,69 @@ button.hidden {
   display: none;
 }
 
+/* Generate section */
+#generate-section {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+#generate-section.hidden {
+  display: none;
+}
+
+#generate-careers-btn {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.generate-hint {
+  font-size: 0.65rem;
+  color: #777;
+  text-align: center;
+  margin: 0.5rem 0 0 0;
+  line-height: 1.4;
+}
+
+/* Career idea pills - colorful variations */
+.career-idea {
+  border-radius: 12px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.7rem;
+  color: white;
+  margin-top: 0.4rem;
+  line-height: 1.3;
+  font-weight: 500;
+}
+
+.mash-group:nth-child(10n+1) .career-idea { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.mash-group:nth-child(10n+2) .career-idea { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.mash-group:nth-child(10n+3) .career-idea { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.mash-group:nth-child(10n+4) .career-idea { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.mash-group:nth-child(10n+5) .career-idea { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.mash-group:nth-child(10n+6) .career-idea { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+.mash-group:nth-child(10n+7) .career-idea { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+.mash-group:nth-child(10n+8) .career-idea { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #333; }
+.mash-group:nth-child(10n+9) .career-idea { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333; }
+.mash-group:nth-child(10n+10) .career-idea { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #333; }
+
+/* Share section */
+#share-section {
+  padding-top: 0.5rem;
+  flex-shrink: 0;
+}
+
+#share-section.hidden {
+  display: none;
+}
+
+#share-btn {
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.75rem;
+  background: linear-gradient(135deg, #30cfd0 0%, #43e97b 100%);
+}
+

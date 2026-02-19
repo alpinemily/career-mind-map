@@ -325,6 +325,11 @@ function finalizeMash() {
     currentStagingEl = null
   }
 
+  // Show generate button after first grouping
+  if (mashGroups.length >= 1) {
+    document.getElementById('generate-section').classList.remove('hidden')
+  }
+
   // Check max
   if (mashGroups.length >= MAX_MASHES) {
     document.getElementById('max-note').classList.remove('hidden')
@@ -371,6 +376,11 @@ function randomizeMash() {
   groupEl.innerHTML = labels.join('<span> + </span>')
   listEl.appendChild(groupEl)
 
+  // Show generate button
+  if (mashGroups.length >= 1) {
+    document.getElementById('generate-section').classList.remove('hidden')
+  }
+
   // Check max
   if (mashGroups.length >= MAX_MASHES) {
     document.getElementById('max-note').classList.remove('hidden')
@@ -382,6 +392,139 @@ function randomizeMash() {
       d3.select(node.element).classed('random-highlight', false)
     })
   }, 5000)
+}
+
+// Generate career ideas from Claude API
+async function generateCareerIdeas() {
+  const apiKey = document.getElementById('api-key').value.trim()
+  if (!apiKey) {
+    alert('Please enter your Claude API key')
+    return
+  }
+
+  if (mashGroups.length === 0) return
+
+  const btn = document.getElementById('generate-careers-btn')
+  btn.disabled = true
+  btn.textContent = 'Generating...'
+
+  // Build the prompt
+  const groupingsText = mashGroups.map((group, i) =>
+    `${i + 1}. "${group.join('" + "')}"`
+  ).join('\n')
+
+  const prompt = `You are a wildly creative career counselor who thinks outside the box. Given combinations of 3 words, generate fun, unexpected, and imaginative career ideas that playfully combine all three concepts.
+
+Here are the word groupings:
+${groupingsText}
+
+For each grouping, create ONE creative career idea that combines all 3 words in an unexpected way. Think quirky, inventive, and delightful - like "Pirate Surf Camp for Kids" if the words were "pirates, sports, kids". The ideas should be fun and inspiring, not boring corporate job titles.
+
+Return ONLY valid JSON in this exact format:
+{
+  "careerIdeas": [
+    {"groupIndex": 0, "idea": "your creative career idea here"},
+    {"groupIndex": 1, "idea": "your creative career idea here"}
+  ]
+}
+
+Make sure to return one idea for each grouping provided.`
+
+  try {
+    const response = await callClaudeAPI(apiKey, prompt)
+    let jsonStr = response.trim()
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+    }
+    const data = JSON.parse(jsonStr)
+
+    // Add career ideas to the mash groups in the sidebar
+    const mashElements = document.querySelectorAll('#mash-list .mash-group')
+    data.careerIdeas.forEach(item => {
+      const mashEl = mashElements[item.groupIndex]
+      if (mashEl && !mashEl.querySelector('.career-idea')) {
+        const ideaEl = document.createElement('div')
+        ideaEl.className = 'career-idea'
+        ideaEl.textContent = item.idea
+        mashEl.appendChild(ideaEl)
+      }
+    })
+
+    // Hide generate button, show share button
+    document.getElementById('generate-section').classList.add('hidden')
+    document.getElementById('share-section').classList.remove('hidden')
+
+    // Disable randomize after generating
+    document.getElementById('randomize-btn').disabled = true
+
+  } catch (error) {
+    console.error(error)
+    alert(`Error generating ideas: ${error.message}`)
+    btn.disabled = false
+    btn.textContent = 'Generate career ideas'
+  }
+}
+
+// Share results as image
+async function shareResults() {
+  const sidebar = document.getElementById('mash-sidebar')
+
+  // Create a clone for capturing
+  const clone = sidebar.cloneNode(true)
+  clone.style.position = 'fixed'
+  clone.style.left = '-9999px'
+  clone.style.width = '300px'
+  clone.style.height = 'auto'
+  clone.style.maxHeight = 'none'
+  clone.style.padding = '1.5rem'
+  clone.style.background = '#1a1a2e'
+
+  // Remove buttons from clone
+  clone.querySelectorAll('button').forEach(btn => btn.remove())
+  clone.querySelectorAll('.generate-hint').forEach(el => el.remove())
+  clone.querySelectorAll('#max-note').forEach(el => el.remove())
+  clone.querySelectorAll('#generate-section').forEach(el => el.remove())
+  clone.querySelectorAll('#share-section').forEach(el => el.remove())
+
+  // Add title
+  const title = clone.querySelector('h3')
+  if (title) {
+    title.textContent = 'My Career Mind Map Ideas'
+    title.style.marginBottom = '1rem'
+  }
+
+  document.body.appendChild(clone)
+
+  try {
+    // Use html2canvas dynamically
+    const script = document.createElement('script')
+    script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js'
+    document.head.appendChild(script)
+
+    await new Promise(resolve => script.onload = resolve)
+
+    const canvas = await html2canvas(clone, {
+      backgroundColor: '#1a1a2e',
+      scale: 2
+    })
+
+    clone.remove()
+
+    // Convert to blob and download
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'career-mind-map.png'
+      a.click()
+      URL.revokeObjectURL(url)
+    }, 'image/png')
+
+  } catch (error) {
+    console.error(error)
+    clone.remove()
+    alert('Error generating image. Please try again.')
+  }
 }
 
 // Animation
@@ -466,6 +609,12 @@ function showMindMap() {
 function init() {
   // Randomize button
   document.getElementById('randomize-btn').addEventListener('click', randomizeMash)
+
+  // Generate career ideas button
+  document.getElementById('generate-careers-btn').addEventListener('click', generateCareerIdeas)
+
+  // Share button
+  document.getElementById('share-btn').addEventListener('click', shareResults)
 
   document.getElementById('generate-btn').addEventListener('click', async () => {
     const apiKey = document.getElementById('api-key').value.trim()

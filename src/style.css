@@ -223,18 +223,13 @@ button.hidden {
 /* Keywords display at bottom */
 #keywords-display {
   position: fixed;
-  bottom: 2rem;
+  bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   z-index: 50;
   opacity: 0;
-  transition: opacity 0.5s ease-in;
-}
-
-#keywords-display.visible {
-  opacity: 1;
 }
 
 #keywords-display.hidden {
@@ -242,12 +237,13 @@ button.hidden {
 }
 
 .keyword-pill {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1.2rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
 }
 
 /* Mind map container */

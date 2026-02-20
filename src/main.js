@@ -1,6 +1,8 @@
 import './style.css'
 import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
+import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
+import { createCareerCardsSection } from './careers.js'
 
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
 const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
@@ -78,12 +80,6 @@ const colorPalette = [
   '#fa709a', '#fee140', '#30cfd0'
 ]
 
-// Selection state
-let selectedNodes = []
-let mashGroups = []
-const MAX_MASHES = 8
-let allTertiaryNodes = [] // Store references to all tertiary node elements
-let selectedTone = 'serious' // Default tone
 
 // Build simple radial mind map for one category
 function buildCategoryMap(categoryData, centerX, centerY) {
@@ -173,8 +169,8 @@ function renderMindMap(data) {
   container.innerHTML = ''
 
   // Reset selection state
-  selectedNodes = []
-  allTertiaryNodes = []
+  state.selectedNodes    = []
+  state.allTertiaryNodes = []
 
   // Calculate sidebar width to match CSS clamp(180px, 15vw, 280px)
   const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
@@ -261,7 +257,7 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
 
   // Store references to tertiary nodes
   node.filter(d => d.level === 2).each(function(d) {
-    allTertiaryNodes.push({
+    state.allTertiaryNodes.push({
       element: this,
       data: d,
       offsetX: offsetX
@@ -269,144 +265,6 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
   })
 }
 
-// Current staging element for building a mash
-let currentStagingEl = null
-
-// Handle tertiary node click
-function handleNodeClick(element, data) {
-  if (mashGroups.length >= MAX_MASHES) return
-
-  const nodeId = element.getAttribute('data-id')
-  const isSelected = selectedNodes.find(n => n.id === nodeId)
-
-  if (isSelected) {
-    // Unselect
-    selectedNodes = selectedNodes.filter(n => n.id !== nodeId)
-    d3.select(element).classed('selected', false)
-    updateStagingText()
-  } else {
-    // Select (if under 3)
-    if (selectedNodes.length < 3) {
-      selectedNodes.push({
-        id: nodeId,
-        label: data.label,
-        element: element
-      })
-      d3.select(element).classed('selected', true)
-      updateStagingText()
-
-      // If we have 3, finalize the mash
-      if (selectedNodes.length === 3) {
-        finalizeMash()
-      }
-    }
-  }
-}
-
-// Update the staging text in sidebar
-function updateStagingText() {
-  const listEl = document.getElementById('mash-list')
-
-  if (selectedNodes.length === 0) {
-    // Remove staging element if no selections
-    if (currentStagingEl) {
-      currentStagingEl.remove()
-      currentStagingEl = null
-    }
-    return
-  }
-
-  // Create staging element if needed
-  if (!currentStagingEl) {
-    currentStagingEl = document.createElement('div')
-    currentStagingEl.className = 'mash-group staging'
-    listEl.appendChild(currentStagingEl)
-  }
-
-  // Update text with current selections
-  const labels = selectedNodes.map(n => n.label)
-  currentStagingEl.innerHTML = labels.join('<span> + </span>')
-}
-
-// Finalize the current mash
-function finalizeMash() {
-  const labels = selectedNodes.map(n => n.label)
-  mashGroups.push(labels)
-
-  // Convert staging to final
-  if (currentStagingEl) {
-    currentStagingEl.classList.remove('staging')
-    currentStagingEl = null
-  }
-
-  // Show generate button after first grouping
-  if (mashGroups.length >= 1) {
-    document.getElementById('generate-section').classList.remove('hidden')
-  }
-
-  // Check max
-  if (mashGroups.length >= MAX_MASHES) {
-    document.getElementById('max-note').classList.remove('hidden')
-  }
-
-  // Unhighlight all nodes
-  selectedNodes.forEach(n => {
-    d3.select(n.element).classed('selected', false)
-  })
-  selectedNodes = []
-}
-
-// Randomize - pick 3 random tertiary nodes with highlight
-function randomizeMash() {
-  if (mashGroups.length >= MAX_MASHES) return
-  if (allTertiaryNodes.length < 3) return
-
-  // Clear any current selection
-  selectedNodes.forEach(n => {
-    d3.select(n.element).classed('selected', false)
-  })
-  if (currentStagingEl) {
-    currentStagingEl.remove()
-    currentStagingEl = null
-  }
-  selectedNodes = []
-
-  // Pick 3 random unique nodes
-  const shuffled = [...allTertiaryNodes].sort(() => Math.random() - 0.5)
-  const picked = shuffled.slice(0, 3)
-
-  // Highlight picked nodes
-  picked.forEach(node => {
-    d3.select(node.element).classed('random-highlight', true)
-  })
-
-  // Add text to sidebar immediately
-  const labels = picked.map(n => n.data.label)
-  mashGroups.push(labels)
-
-  const listEl = document.getElementById('mash-list')
-  const groupEl = document.createElement('div')
-  groupEl.className = 'mash-group'
-  groupEl.innerHTML = labels.join('<span> + </span>')
-  listEl.appendChild(groupEl)
-
-  // Show generate button
-  if (mashGroups.length >= 1) {
-    document.getElementById('generate-section').classList.remove('hidden')
-  }
-
-  // Check max
-  if (mashGroups.length >= MAX_MASHES) {
-    document.getElementById('max-note').classList.remove('hidden')
-  }
-
-  // After 5 seconds, remove highlight
-  setTimeout(() => {
-    picked.forEach(node => {
-      d3.select(node.element).classed('random-highlight', false)
-    })
-  }, 5000)
-}
 
 // Build career prompt for a given tone and groupings text
 function buildCareerPrompt(tone, groupingsText) {
@@ -464,7 +322,7 @@ async function generateCareerIdeas() {
     return
   }
 
-  if (mashGroups.length === 0) return
+  if (state.mashGroups.length === 0) return
 
   const btn = document.getElementById('generate-careers-btn')
   btn.disabled = true
@@ -474,12 +332,12 @@ async function generateCareerIdeas() {
     let careerIdeas
     if (DEV_MODE) {
       await new Promise(r => setTimeout(r, 600))
-      careerIdeas = getMockCareerIdeas(mashGroups, selectedTone)
+      careerIdeas = getMockCareerIdeas(state.mashGroups, state.selectedTone)
     } else {
-      const groupingsText = mashGroups.map((group, i) =>
+      const groupingsText = state.mashGroups.map((group, i) =>
         `${i + 1}. "${group.join('" + "')}"`
       ).join('\n')
-      const prompt = buildCareerPrompt(selectedTone, groupingsText)
+      const prompt = buildCareerPrompt(state.selectedTone, groupingsText)
       const response = await callClaudeAPI(apiKey, prompt)
       let jsonStr = response.trim()
       if (jsonStr.startsWith('```')) {
@@ -488,8 +346,12 @@ async function generateCareerIdeas() {
       careerIdeas = JSON.parse(jsonStr).careerIdeas
     }
 
-    // Create career cards section below the page (with share button)
-    createCareerCardsSection(careerIdeas, mashGroups)
+    createCareerCardsSection(careerIdeas, state.mashGroups, {
+      currentTone:  state.selectedTone,
+      onShare:      shareResults,
+      onSwitchTone: (tone) => regenerateWithAlternateTone(tone, state.mashGroups),
+      onStartOver:  startOver,
+    })
 
     // Hide the entire sidebar
     document.getElementById('mash-sidebar').classList.add('hidden')
@@ -531,115 +393,11 @@ async function generateCareerIdeas() {
   }
 }
 
-// Create career cards section below the page
-function createCareerCardsSection(careerIdeas, groups, { showToneSwitch = true } = {}) {
-  // Remove existing section and scroll arrow if any
-  const existing = document.getElementById('career-cards-section')
-  if (existing) existing.remove()
-  const existingArrow = document.getElementById('scroll-arrow')
-  if (existingArrow) existingArrow.remove()
-
-  // Create scroll arrow (only show if user hasn't scrolled yet)
-  const arrow = document.createElement('div')
-  arrow.id = 'scroll-arrow'
-  arrow.innerHTML = `
-    <span>Scroll to see your career ideas</span>
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 5v14M5 12l7 7 7-7"/>
-    </svg>
-  `
-  document.getElementById('app').appendChild(arrow)
-
-  // Create section
-  const section = document.createElement('div')
-  section.id = 'career-cards-section'
-
-  // Header row: title on left, share button on right
-  const headerRow = document.createElement('div')
-  headerRow.className = 'career-section-header'
-
-  const title = document.createElement('h2')
-  title.textContent = 'Your Career Ideas'
-  headerRow.appendChild(title)
-
-  const shareBtn = document.createElement('button')
-  shareBtn.id = 'share-results-btn'
-  shareBtn.textContent = 'Share results'
-  shareBtn.addEventListener('click', shareResults)
-  headerRow.appendChild(shareBtn)
-
-  section.appendChild(headerRow)
-
-  const cardsContainer = document.createElement('div')
-  cardsContainer.className = 'career-cards-container'
-
-  careerIdeas.forEach((idea, i) => {
-    const card = document.createElement('div')
-    card.className = 'career-card'
-
-    const words = document.createElement('div')
-    words.className = 'card-words'
-    words.innerHTML = groups[idea.groupIndex].join('<span> + </span>')
-
-    const titleEl = document.createElement('h3')
-    titleEl.className = 'card-title'
-    titleEl.textContent = idea.title || idea.idea
-
-    const desc = document.createElement('p')
-    desc.className = 'card-description'
-    desc.textContent = idea.description || ''
-
-    card.appendChild(words)
-    card.appendChild(titleEl)
-    if (idea.description) card.appendChild(desc)
-    cardsContainer.appendChild(card)
-  })
-
-  section.appendChild(cardsContainer)
-
-  // Action buttons: switch tone + start over
-  const actionsDiv = document.createElement('div')
-  actionsDiv.className = 'career-actions'
-
-  const alternateTone = selectedTone === 'serious' ? 'playful' : 'serious'
-  const toneLabel = alternateTone === 'playful' ? 'Playful' : 'Serious'
-
-  if (showToneSwitch) {
-    const switchToneBtn = document.createElement('button')
-    switchToneBtn.id = 'switch-tone-btn'
-    switchToneBtn.textContent = `Try ${toneLabel} ideas instead`
-    switchToneBtn.addEventListener('click', () => regenerateWithAlternateTone(alternateTone, groups))
-    actionsDiv.appendChild(switchToneBtn)
-  }
-
-  const startOverBtn = document.createElement('button')
-  startOverBtn.id = 'start-over-btn'
-  startOverBtn.textContent = 'Start over'
-  startOverBtn.addEventListener('click', () => {
-    document.body.style.transition = 'opacity 0.4s ease-out'
-    document.body.style.opacity = '0'
-    setTimeout(resetApp, 400) // wait for fade-out to finish, then reset while invisible
-  })
-  actionsDiv.appendChild(startOverBtn)
-
-  section.appendChild(actionsDiv)
-
-  document.getElementById('app').appendChild(section)
-
-  // Only show scroll arrow if user hasn't scrolled to the career section yet
-  if (window.scrollY < 100) {
-    setTimeout(() => {
-      arrow.classList.add('visible')
-    }, 300)
-
-    const handleScroll = () => {
-      if (window.scrollY > 100) {
-        arrow.classList.add('hidden')
-        window.removeEventListener('scroll', handleScroll)
-      }
-    }
-    window.addEventListener('scroll', handleScroll)
-  }
+// Fade out and reset the app to step 1 (reused by both start-over button and resetApp)
+function startOver() {
+  document.body.style.transition = 'opacity 0.4s ease-out'
+  document.body.style.opacity = '0'
+  setTimeout(resetApp, 400) // wait for fade-out to finish, then reset while invisible
 }
 
 // Regenerate career cards with the alternate tone
@@ -674,8 +432,14 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
       careerIdeas = JSON.parse(jsonStr).careerIdeas
     }
 
-    selectedTone = alternateTone
-    createCareerCardsSection(careerIdeas, groups, { showToneSwitch: false })
+    state.selectedTone = alternateTone
+    createCareerCardsSection(careerIdeas, groups, {
+      showToneSwitch: false,
+      currentTone:   alternateTone,
+      onShare:       shareResults,
+      onSwitchTone:  () => {},
+      onStartOver:   startOver,
+    })
 
     // Scroll to career section since user is already past the mind map
     document.getElementById('career-cards-section')?.scrollIntoView({ behavior: 'smooth' })
@@ -872,10 +636,7 @@ function showMindMap() {
 // Called after the fade-out completes. Resets all state and DOM while the page
 // is invisible (opacity 0), then fades back in — no reload, no flash.
 function resetApp() {
-  selectedNodes = []    // clear any in-progress node selection
-  mashGroups = []       // clear all saved word groupings
-  allTertiaryNodes = [] // clear the node reference list used by randomize
-  selectedTone = 'serious' // reset tone to default
+  resetSelectionState() // clears selectedNodes, mashGroups, allTertiaryNodes, selectedTone
 
   // tear down sections that were created dynamically during the session
   document.getElementById('career-cards-section')?.remove()
@@ -928,7 +689,7 @@ function init() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'))
       btn.classList.add('active')
-      selectedTone = btn.dataset.tone
+      state.selectedTone = btn.dataset.tone
     })
   })
 

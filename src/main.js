@@ -494,15 +494,21 @@ async function shareResults() {
     if (keywordsDisplay) keywordsDisplay.style.display = ''
     if (careerActions) careerActions.style.display = ''
 
-    // Convert to blob and download
-    combinedCanvas.toBlob(blob => {
+    // Convert to blob, then share natively on mobile or download on desktop
+    const filename = state.selectedTone === 'playful' ? 'career-mind-map-playful.png' : 'career-mind-map.png'
+    const blob = await new Promise(resolve => combinedCanvas.toBlob(resolve, 'image/png'))
+    const file = new File([blob], filename, { type: 'image/png' })
+
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'My Career Mind Map' })
+    } else {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = state.selectedTone === 'playful' ? 'career-mind-map-playful.png' : 'career-mind-map.png'
+      a.download = filename
       a.click()
       URL.revokeObjectURL(url)
-    }, 'image/png')
+    }
 
     if (btn) {
       btn.disabled = false

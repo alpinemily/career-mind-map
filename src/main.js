@@ -45,8 +45,6 @@ function showErrorBar(message) {
   bar.classList.add('visible')
   const dismiss = () => bar.classList.remove('visible')
   document.getElementById('error-bar-close').addEventListener('click', dismiss)
-  clearTimeout(bar._timeout)
-  bar._timeout = setTimeout(dismiss, 6000)
 }
 
 

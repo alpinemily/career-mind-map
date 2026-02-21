@@ -1,25 +1,46 @@
-export const ERROR_MESSAGE = "Something went wrong. Text Emily and let her know? If you don't know Emily ... why are you even here?"
+export const ERROR_MESSAGE       = "Something went wrong. Text Emily and let her know? If you don't know Emily ... why are you even here?"
+export const RATE_LIMIT_MESSAGE  = "You've used today's 5 sessions — come back tomorrow!"
 
-export async function callClaudeAPI(apiKey, prompt) {
+const WORKER = import.meta.env.VITE_WORKER_URL ?? ''
+
+async function postToWorker(path, prompt) {
+  const response = await fetch(`${WORKER}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model:    'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (response.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
+  if (!response.ok)            throw new Error(ERROR_MESSAGE)
+
+  const data = await response.json()
+  return data.content[0].text
+}
+
+export const callClaudeAssociations = (prompt) => postToWorker('/word-webs', prompt)
+export const callClaudeCareers      = (prompt) => postToWorker('/careers',      prompt)
+
+// Staging mode: hit Claude directly with a user-supplied key (bypasses the Worker)
+export async function callClaudeDirect(apiKey, prompt) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'Content-Type':    'application/json',
+      'x-api-key':       apiKey,
       'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
-    })
+      messages:   [{ role: 'user', content: prompt }],
+    }),
   })
-
-  if (!response.ok) {
-    throw new Error(ERROR_MESSAGE)
-  }
-
+  if (!response.ok) throw new Error(ERROR_MESSAGE)
   const data = await response.json()
   return data.content[0].text
 }

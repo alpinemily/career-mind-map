@@ -36,6 +36,12 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
 
   const title = document.createElement('h2')
   title.textContent = 'Mind Map Career Ideas'
+  if (currentTone === 'playful') {
+    const badge = document.createElement('span')
+    badge.className = 'tone-badge'
+    badge.textContent = 'Playful'
+    title.appendChild(badge)
+  }
   headerRow.appendChild(title)
 
   const shareBtn = document.createElement('button')
@@ -96,6 +102,14 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
   actionsDiv.appendChild(startOverBtn)
 
   section.appendChild(actionsDiv)
+
+  const existingNote = document.querySelector('.app-footnote')
+  if (existingNote) {
+    const note = existingNote.cloneNode(true)
+    note.classList.add('app-footnote--inline')
+    section.appendChild(note)
+  }
+
   document.getElementById('app').appendChild(section)
 
   if (window.scrollY < 100) {

@@ -51,6 +51,23 @@ describe('career cards section — header', () => {
     expect(h2.textContent).toBe('Mind Map Career Ideas')
   })
 
+  it('shows no tone badge when tone is serious', () => {
+    expect(document.querySelector('.tone-badge')).toBeNull()
+  })
+
+  it('shows a "Playful" tone badge when tone is playful', () => {
+    setup(IDEAS, GROUPS, { currentTone: 'playful' })
+    const badge = document.querySelector('.tone-badge')
+    expect(badge).not.toBeNull()
+    expect(badge.textContent).toBe('Playful')
+  })
+
+  it('the tone badge sits inside the h2 when tone is playful', () => {
+    setup(IDEAS, GROUPS, { currentTone: 'playful' })
+    const h2 = document.querySelector('#career-cards-section h2')
+    expect(h2.contains(document.querySelector('.tone-badge'))).toBe(true)
+  })
+
   it('contains the share button (#share-results-btn)', () => {
     expect(document.getElementById('share-results-btn')).not.toBeNull()
   })

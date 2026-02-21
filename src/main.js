@@ -3,12 +3,20 @@ import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
 import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
 import { createCareerCardsSection } from './careers.js'
-import { callClaudeAPI } from './apiClient.js'
+import { callClaudeAssociations, callClaudeCareers, callClaudeDirect } from './apiClient.js'
 import { updateGenerateBtn } from './formValidation.js'
 import { parseCompactAssociations } from './parseAssociations.js'
 
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
-const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
+const DEV_MODE     = new URLSearchParams(window.location.search).has('dev')
+// Staging mode: add ?staging to use a UI-entered API key and call Claude directly
+const STAGING_MODE = new URLSearchParams(window.location.search).has('staging')
+
+function getStagingApiKey() {
+  const key = document.getElementById('staging-api-key')?.value.trim()
+  if (!key) throw new Error('Please enter your Claude API key to use staging mode')
+  return key
+}
 
 function triggerRipple(element, multi = false) {
   element.classList.remove('ripple', 'ripple-multi')
@@ -43,7 +51,7 @@ function showErrorBar(message) {
 
 
 // Get all associations
-async function getAllAssociations(apiKey, engagement, energy, flow) {
+async function getAllAssociations(engagement, energy, flow) {
   const prompt = `Word-associate 3 career mind map keyphrases. Per keyphrase: 7 words, each with 3 sub-words. Be creative and lateral — go beyond the obvious, but the connection should still be immediately understandable to a human (no abstract leaps).
 ENGAGEMENT: "${engagement}"
 ENERGY: "${energy}"
@@ -51,7 +59,9 @@ FLOW: "${flow}"
 
 JSON only — ordered array [engagement,energy,flow], each: [[word,s1,s2,s3],…×7]`
 
-  const response = await callClaudeAPI(apiKey, prompt)
+  const response = STAGING_MODE
+    ? await callClaudeDirect(getStagingApiKey(), prompt)
+    : await callClaudeAssociations(prompt)
   let jsonStr = response.trim()
   if (jsonStr.startsWith('```')) {
     jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
@@ -279,12 +289,6 @@ JSON only — array in order, one per group: [{"t":"Short Title","d":"One senten
 
 // Generate career ideas from Claude API
 async function generateCareerIdeas() {
-  const apiKey = document.getElementById('api-key').value.trim()
-  if (!DEV_MODE && !apiKey) {
-    showErrorBar('Please enter your Claude API key')
-    return
-  }
-
   if (state.mashGroups.length === 0) return
 
   const btn = document.getElementById('generate-careers-btn')
@@ -300,7 +304,9 @@ async function generateCareerIdeas() {
         `${i + 1}. ${group.join(', ')}`
       ).join('\n')
       const prompt = buildCareerPrompt(state.selectedTone, groupingsText)
-      const response = await callClaudeAPI(apiKey, prompt)
+      const response = STAGING_MODE
+        ? await callClaudeDirect(getStagingApiKey(), prompt)
+        : await callClaudeCareers(prompt)
       let jsonStr = response.trim()
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
@@ -365,12 +371,6 @@ function startOver() {
 
 // Regenerate career cards with the alternate tone
 async function regenerateWithAlternateTone(alternateTone, groups) {
-  const apiKey = document.getElementById('api-key').value.trim()
-  if (!DEV_MODE && !apiKey) {
-    showErrorBar('Please enter your Claude API key')
-    return
-  }
-
   const btn = document.getElementById('switch-tone-btn')
   if (btn) setButtonLoading(btn, 'Generating')
 
@@ -384,7 +384,9 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
         `${i + 1}. ${group.join(', ')}`
       ).join('\n')
       const prompt = buildCareerPrompt(alternateTone, groupingsText)
-      const response = await callClaudeAPI(apiKey, prompt)
+      const response = STAGING_MODE
+        ? await callClaudeDirect(getStagingApiKey(), prompt)
+        : await callClaudeCareers(prompt)
       let jsonStr = response.trim()
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
@@ -499,7 +501,7 @@ async function shareResults() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'career-mind-map.png'
+      a.download = state.selectedTone === 'playful' ? 'career-mind-map-playful.png' : 'career-mind-map.png'
       a.click()
       URL.revokeObjectURL(url)
     }, 'image/png')
@@ -640,6 +642,7 @@ function resetApp() {
   generateBtn.disabled = false
   document.getElementById('randomize-btn').disabled = false
 
+
   // snap to top while still invisible so the form is in view before fade-in starts
   window.scrollTo(0, 0)
   document.body.style.transition = 'opacity 0.4s ease-in'
@@ -686,29 +689,40 @@ function init() {
 
   // Dev mode setup
   if (DEV_MODE) {
-    // Badge
     const badge = document.createElement('div')
     badge.id = 'dev-mode-badge'
     badge.textContent = 'DEV MODE'
     document.getElementById('app').appendChild(badge)
 
-    // Hide API key input since it's not needed
-    document.querySelector('.api-key-corner').style.display = 'none'
-
     // Pre-fill inputs so user can click straight through
     document.getElementById('keyword-engagement').value = 'balancing the budget'
     document.getElementById('keyword-energy').value = 'teaching'
     document.getElementById('keyword-flow').value = 'social dance'
+    updateGenerateBtn(keywordInputs, generateBtn)
+  }
+
+  // Staging mode setup
+  if (STAGING_MODE) {
+    const badge = document.createElement('div')
+    badge.id = 'dev-mode-badge'
+    badge.textContent = 'STAGING MODE'
+    document.getElementById('app').appendChild(badge)
+
+    const corner = document.createElement('div')
+    corner.className = 'api-key-corner'
+    corner.innerHTML = '<input type="text" id="staging-api-key" placeholder="Claude API Key" />'
+    document.getElementById('app').appendChild(corner)
   }
 
   document.getElementById('generate-btn').addEventListener('click', async () => {
-    const apiKey = document.getElementById('api-key').value.trim()
     const engagement = document.getElementById('keyword-engagement').value.trim()
     const energy = document.getElementById('keyword-energy').value.trim()
     const flow = document.getElementById('keyword-flow').value.trim()
 
-    if (!DEV_MODE && !apiKey) { showErrorBar('Please enter your Claude API key (top right corner)'); return }
     if (!engagement || !energy || !flow) { showErrorBar('Please fill in all three keyword fields'); return }
+    if (STAGING_MODE && !document.getElementById('staging-api-key')?.value.trim()) {
+      showErrorBar('Please enter your Claude API key for staging mode'); return
+    }
 
     const btn = document.getElementById('generate-btn')
     btn.disabled = true
@@ -729,7 +743,7 @@ function init() {
           flow:       { ...MOCK_ASSOCIATIONS.flow,       keyword: flow       }
         }
       } else {
-        data = await getAllAssociations(apiKey, engagement, energy, flow)
+        data = await getAllAssociations(engagement, energy, flow)
       }
       loading.classList.add('hidden')
       await showMindMap()

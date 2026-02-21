@@ -1,0 +1,7 @@
+name               = "career-mind-map"
+main               = "index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "CAREER_MIND_MAP_RATE_LIMIT"
+id      = "84a1e318cc164bc39fe9abd1f15da211"

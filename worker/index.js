@@ -8,7 +8,9 @@
 //   4. wrangler secret put CLAUDE_API_KEY
 //   5. wrangler secret put ALLOWED_ORIGIN
 //      and enter your deployed site URL e.g. https://alpinemily.github.io
-//   6. wrangler deploy
+//   6. wrangler secret put LOGTAIL_TOKEN
+//      and enter your Better Stack source token
+//   7. wrangler deploy
 
 // /word-webs is rate limited to 5/day per IP (one per session).
 // /careers is not rate limited — the UI caps it to 2 calls per session at most
@@ -17,7 +19,7 @@ const WORD_WEBS_DAILY_LIMIT = 5
 const ALLOWED_PATHS = new Set(['/word-webs', '/careers'])
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) })
     }
@@ -50,6 +52,22 @@ export default {
 
     // Proxy to Claude
     const body = await request.json()
+
+    // Log keyword inputs from /word-webs submissions to Better Stack (fire-and-forget)
+    if (path === '/word-webs' && env.LOGTAIL_TOKEN) {
+      const prompt     = body.messages?.[0]?.content ?? ''
+      const engagement = prompt.match(/ENGAGEMENT: "([^"]+)"/)?.[1] ?? ''
+      const energy     = prompt.match(/ENERGY: "([^"]+)"/)?.[1]     ?? ''
+      const flow       = prompt.match(/FLOW: "([^"]+)"/)?.[1]       ?? ''
+      ctx.waitUntil(logToLogtail(env.LOGTAIL_TOKEN, {
+        message:    'career-mind-map submission',
+        engagement,
+        energy,
+        flow,
+        ip: request.headers.get('CF-Connecting-IP') || 'unknown',
+      }))
+    }
+
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -66,6 +84,17 @@ export default {
       headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },
     })
   },
+}
+
+async function logToLogtail(token, payload) {
+  await fetch('https://in.logs.betterstack.com', {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  })
 }
 
 function corsHeaders(request, env) {

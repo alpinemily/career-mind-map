@@ -3,7 +3,7 @@ import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
 import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
 import { createCareerCardsSection } from './careers.js'
-import { callClaudeAssociations, callClaudeCareers, callClaudeDirect } from './apiClient.js'
+import { callClaudeAssociations, callClaudeCareers, callClaudeDirect, parseClaudeJSON } from './apiClient.js'
 import { updateGenerateBtn } from './formValidation.js'
 import { parseCompactAssociations } from './parseAssociations.js'
 
@@ -60,11 +60,7 @@ JSON only — ordered array [engagement,energy,flow], each: [[word,s1,s2,s3],…
   const response = STAGING_MODE
     ? await callClaudeDirect(getStagingApiKey(), prompt)
     : await callClaudeAssociations(prompt)
-  let jsonStr = response.trim()
-  if (jsonStr.startsWith('```')) {
-    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
-  }
-  return parseCompactAssociations(JSON.parse(jsonStr), { engagement, energy, flow })
+  return parseCompactAssociations(parseClaudeJSON(response), { engagement, energy, flow })
 }
 
 // Color palette
@@ -363,11 +359,7 @@ async function generateCareerIdeas() {
       const response = STAGING_MODE
         ? await callClaudeDirect(getStagingApiKey(), prompt)
         : await callClaudeCareers(prompt)
-      let jsonStr = response.trim()
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
-      }
-      careerIdeas = JSON.parse(jsonStr).map((idea, i) => ({
+      careerIdeas = parseClaudeJSON(response).map((idea, i) => ({
         groupIndex: i, title: idea.t, description: idea.d,
       }))
     }
@@ -447,11 +439,7 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
       const response = STAGING_MODE
         ? await callClaudeDirect(getStagingApiKey(), prompt)
         : await callClaudeCareers(prompt)
-      let jsonStr = response.trim()
-      if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
-      }
-      careerIdeas = JSON.parse(jsonStr).map((idea, i) => ({
+      careerIdeas = parseClaudeJSON(response).map((idea, i) => ({
         groupIndex: i, title: idea.t, description: idea.d,
       }))
     }
@@ -578,6 +566,11 @@ async function shareResults() {
     }
 
   } catch (error) {
+    // AbortError = user dismissed the native share sheet — not a real error
+    if (error.name === 'AbortError') {
+      if (btn) { btn.disabled = false; btn.textContent = 'Share results' }
+      return
+    }
     console.error(error)
     showErrorBar('Error generating image. Please try again.')
     if (btn) {

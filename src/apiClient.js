@@ -1,5 +1,20 @@
-export const ERROR_MESSAGE       = "Something went wrong. Text Emily and let her know? If you don't know Emily, um, why are you even here?"
-export const RATE_LIMIT_MESSAGE  = "You've hit the daily usage limit. Come back tomorrow. Emily's api credit budget thanks you. 🥺👉👈"
+export const ERROR_MESSAGE        = "Something went wrong. Text Emily and let her know? If you don't know Emily, um, why are you even here?"
+export const RATE_LIMIT_MESSAGE   = "You've hit the daily usage limit. Come back tomorrow. Emily's api credit budget thanks you. 🥺👉👈"
+export const FLAGGED_MESSAGE      = "Please try different words."
+
+// Parse Claude's response text as JSON. Claude occasionally refuses with prose instead of
+// JSON — that produces a SyntaxError, which we surface as a clear user-facing message.
+export function parseClaudeJSON(rawText) {
+  let jsonStr = rawText.trim()
+  if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+  }
+  try {
+    return JSON.parse(jsonStr)
+  } catch {
+    throw new Error(FLAGGED_MESSAGE)
+  }
+}
 
 const WORKER = import.meta.env.VITE_WORKER_URL ?? ''
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { callClaudeAssociations, callClaudeCareers, ERROR_MESSAGE, RATE_LIMIT_MESSAGE } from '../apiClient.js'
+import { callClaudeAssociations, callClaudeCareers, parseClaudeJSON, ERROR_MESSAGE, RATE_LIMIT_MESSAGE, FLAGGED_MESSAGE } from '../apiClient.js'
 
 function mockFetch(status, body) {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -14,6 +14,45 @@ function mockFetchNetworkError() {
 }
 
 beforeEach(() => vi.unstubAllGlobals())
+
+// ── parseClaudeJSON ────────────────────────────────────────────────────────
+
+describe('parseClaudeJSON', () => {
+  it('parses a plain JSON object', () => {
+    expect(parseClaudeJSON('{"a":1}')).toEqual({ a: 1 })
+  })
+
+  it('parses a plain JSON array', () => {
+    expect(parseClaudeJSON('[1,2,3]')).toEqual([1, 2, 3])
+  })
+
+  it('strips a ```json ... ``` code fence before parsing', () => {
+    const fenced = '```json\n[{"t":"Title","d":"Desc"}]\n```'
+    expect(parseClaudeJSON(fenced)).toEqual([{ t: 'Title', d: 'Desc' }])
+  })
+
+  it('strips a plain ``` ... ``` code fence before parsing', () => {
+    const fenced = '```\n{"key":"val"}\n```'
+    expect(parseClaudeJSON(fenced)).toEqual({ key: 'val' })
+  })
+
+  it('trims leading/trailing whitespace before parsing', () => {
+    expect(parseClaudeJSON('  [1]  ')).toEqual([1])
+  })
+
+  it('throws FLAGGED_MESSAGE when Claude responds with refusal prose', () => {
+    expect(() => parseClaudeJSON("I'm sorry, I can't help with that request."))
+      .toThrow(FLAGGED_MESSAGE)
+  })
+
+  it('throws FLAGGED_MESSAGE on any other non-JSON text', () => {
+    expect(() => parseClaudeJSON('not json at all')).toThrow(FLAGGED_MESSAGE)
+  })
+
+  it('throws FLAGGED_MESSAGE on an empty string', () => {
+    expect(() => parseClaudeJSON('')).toThrow(FLAGGED_MESSAGE)
+  })
+})
 
 // ── error handling ─────────────────────────────────────────────────────────
 

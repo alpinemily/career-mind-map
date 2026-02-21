@@ -637,9 +637,14 @@ function resetApp() {
   const formContainer = document.getElementById('form-container')
   formContainer.classList.remove('hidden')
   formContainer.style.visibility = '' // was set to 'hidden' during the keyword animation
+  // clear keyword inputs and re-evaluate button state
+  const keywordInputs = ['keyword-engagement', 'keyword-energy', 'keyword-flow']
+    .map(id => document.getElementById(id))
+  keywordInputs.forEach(el => { el.value = '' })
+
   const generateBtn = document.getElementById('generate-btn')
   generateBtn.style.display = 'block'
-  generateBtn.disabled = false
+  updateGenerateBtn(keywordInputs, generateBtn)
   document.getElementById('randomize-btn').disabled = false
 
 

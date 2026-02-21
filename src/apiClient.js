@@ -1,5 +1,5 @@
-export const ERROR_MESSAGE       = "Something went wrong. Text Emily and let her know? If you don't know Emily ... why are you even here?"
-export const RATE_LIMIT_MESSAGE  = "You've hit the 5-query daily limit. Emily's api credit budget thanks you. 🥺👉👈"
+export const ERROR_MESSAGE       = "Something went wrong. Text Emily and let her know? If you don't know Emily, um, why are you even here?"
+export const RATE_LIMIT_MESSAGE  = "You've hit the daily usage limit. Come back tomorrow. Emily's api credit budget thanks you. 🥺👉👈"
 
 const WORKER = import.meta.env.VITE_WORKER_URL ?? ''
 

@@ -76,7 +76,7 @@ const colorPalette = [
 
 
 // Build simple radial mind map for one category
-function buildCategoryMap(categoryData, centerX, centerY) {
+function buildCategoryMap(categoryData, centerX, centerY, primaryRadius = 100, secondaryRadius = 70) {
   const nodes = []
   const links = []
 
@@ -90,9 +90,6 @@ function buildCategoryMap(categoryData, centerX, centerY) {
     x: centerX,
     y: centerY
   })
-
-  const primaryRadius = 100
-  const secondaryRadius = 70
 
   categoryData.associations.forEach((item, i) => {
     const angle = (i / 7) * Math.PI * 2 - Math.PI / 2
@@ -166,29 +163,90 @@ function renderMindMap(data) {
   state.selectedNodes    = []
   state.allTertiaryNodes = []
 
-  // Calculate sidebar width to match CSS clamp(180px, 15vw, 280px)
-  const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
-  const availableWidth = window.innerWidth - sidebarWidth
-  const height = window.innerHeight - 70
-  const sectionWidth = availableWidth / 3
-  const verticalCenter = height / 2
+  const categories  = ['engagement', 'energy', 'flow']
+  // True when the viewport is taller than it is wide (i.e. portrait orientation — phones)
+  const isMobile = window.innerWidth < window.innerHeight
 
-  // Create SVG that fills available width (excluding sidebar)
-  const svg = d3.select(container)
-    .append('svg')
-    .attr('width', availableWidth)
-    .attr('height', height)
-    .attr('id', 'mindmap-svg')
+  let svg, mainGroup
 
-  // Create main group for all content (for animation)
-  const mainGroup = svg.append('g').attr('class', 'main-group')
+  // Max node reach from center = primaryRadius + half variation + secondaryRadius + half variation
+  // = 100 + 15 + 70 + 12.5 = 197.5px at the default radii
+  const MAX_REACH_AT_DEFAULT = 197.5
 
-  const categories = ['engagement', 'energy', 'flow']
+  if (isMobile) {
+    // Mobile: 3 maps in a horizontally scrollable row — each map gets full viewport width
+    const sectionWidth  = window.innerWidth
+    const svgWidth      = sectionWidth * 3
 
-  categories.forEach((cat, i) => {
-    const mapData = buildCategoryMap(data[cat], sectionWidth / 2, verticalCenter)
-    renderCategoryInGroup(mainGroup, mapData, i * sectionWidth, cat)
-  })
+    // Scale radii to fit within each full-width section (25px padding per side)
+    const maxReach      = sectionWidth / 2 - 25
+    const radiiScale    = Math.min(1, maxReach / MAX_REACH_AT_DEFAULT)
+    const primaryRadius   = Math.round(100 * radiiScale)
+    const secondaryRadius = Math.round(70  * radiiScale)
+
+    // SVG height: fit the nodes tightly (max radial extent + small padding)
+    const maxExtent = (primaryRadius + 15) + (secondaryRadius + 12.5)
+    const svgHeight = Math.round(maxExtent * 2 + 40)
+    const centerY   = svgHeight / 2
+
+    svg = d3.select(container)
+      .append('svg')
+      .attr('width', svgWidth)
+      .attr('height', svgHeight)
+      .attr('id', 'mindmap-svg')
+
+    mainGroup = svg.append('g').attr('class', 'main-group')
+
+    categories.forEach((cat, i) => {
+      const mapData = buildCategoryMap(data[cat], sectionWidth / 2, centerY, primaryRadius, secondaryRadius)
+      renderCategoryInGroup(mainGroup, mapData, i * sectionWidth, cat, 0)
+    })
+
+    // Scroll hint — fades in after maps appear, dismisses on first scroll or after 4s
+    const hint = document.createElement('div')
+    hint.id = 'mindmap-scroll-hint'
+    hint.textContent = '← scroll to see all 3 mind maps →'
+    hint.style.top = `${Math.round(svgHeight - 52)}px`
+    document.body.appendChild(hint)
+
+    let hintDismissed = false
+    const dismissHint = () => {
+      if (hintDismissed) return
+      hintDismissed = true
+      hint.classList.remove('visible')
+      setTimeout(() => hint.remove(), 500)
+      container.removeEventListener('scroll', dismissHint)
+    }
+    setTimeout(() => hint.classList.add('visible'), 900)
+    container.addEventListener('scroll', dismissHint, { passive: true })
+    setTimeout(dismissHint, 4000)
+  } else {
+    // Desktop/landscape: 3 maps side by side, sidebar fixed on the right
+    const sidebarWidth   = Math.min(280, Math.max(180, window.innerWidth * 0.15))
+    const availableWidth = window.innerWidth - sidebarWidth
+    const height         = window.innerHeight - 70
+    const sectionWidth   = availableWidth / 3
+    const verticalCenter = height / 2
+
+    // Scale radii so nodes don't bleed into the adjacent section (8px padding each side)
+    const maxReach      = sectionWidth / 2 - 8
+    const radiiScale    = Math.min(1, maxReach / MAX_REACH_AT_DEFAULT)
+    const primaryRadius   = Math.round(100 * radiiScale)
+    const secondaryRadius = Math.round(70  * radiiScale)
+
+    svg = d3.select(container)
+      .append('svg')
+      .attr('width', availableWidth)
+      .attr('height', height)
+      .attr('id', 'mindmap-svg')
+
+    mainGroup = svg.append('g').attr('class', 'main-group')
+
+    categories.forEach((cat, i) => {
+      const mapData = buildCategoryMap(data[cat], sectionWidth / 2, verticalCenter, primaryRadius, secondaryRadius)
+      renderCategoryInGroup(mainGroup, mapData, i * sectionWidth, cat, 0)
+    })
+  }
 
   // Show sidebar
   document.getElementById('mash-sidebar').classList.remove('hidden')
@@ -198,8 +256,8 @@ function renderMindMap(data) {
 }
 
 // Render category into a group (for animation support)
-function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
-  const g = parentG.append('g').attr('transform', `translate(${offsetX}, 0)`)
+function renderCategoryInGroup(parentG, data, offsetX, categoryName, offsetY = 0) {
+  const g = parentG.append('g').attr('transform', `translate(${offsetX}, ${offsetY})`)
 
   // Links
   g.selectAll('.link')
@@ -330,27 +388,31 @@ async function generateCareerIdeas() {
       keywordsDisplay.style.transition = 'opacity 0.5s ease-out'
       keywordsDisplay.style.opacity = '0'
       setTimeout(() => {
-        keywordsDisplay.classList.add('hidden')
+        // Clear pill text so the elements aren't sitting invisible with stale content
+        ;['display-engagement', 'display-energy', 'display-flow'].forEach(id => {
+          document.getElementById(id).textContent = ''
+        })
       }, 500)
     }
 
-    // Animate mindmap to center now that sidebar is gone
-    const container = document.getElementById('mindmap-container')
-    const svg = container.querySelector('svg')
-    if (svg) {
-      const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
-      const shiftX = sidebarWidth / 2  // Shift content to center
+    // Animate mindmap to center now that sidebar is gone (desktop only — on portrait
+    // the sidebar sits below the maps in document flow, so no horizontal shift needed)
+    if (window.innerWidth >= window.innerHeight) { // desktop/landscape only
+      const container = document.getElementById('mindmap-container')
+      const svg = container.querySelector('svg')
+      if (svg) {
+        const sidebarWidth = Math.min(280, Math.max(180, window.innerWidth * 0.15))
+        const shiftX = sidebarWidth / 2
 
-      // Animate the shift using the main group
-      const mainGroup = svg.querySelector('.main-group')
-      if (mainGroup) {
-        mainGroup.style.transition = 'transform 0.6s ease-out'
-        mainGroup.setAttribute('transform', `translate(${shiftX}, 0)`)
+        const mainGroup = svg.querySelector('.main-group')
+        if (mainGroup) {
+          mainGroup.style.transition = 'transform 0.6s ease-out'
+          mainGroup.setAttribute('transform', `translate(${shiftX}, 0)`)
+        }
+
+        svg.style.transition = 'width 0.6s ease-out'
+        svg.setAttribute('width', window.innerWidth)
       }
-
-      // Expand SVG width with transition
-      svg.style.transition = 'width 0.6s ease-out'
-      svg.setAttribute('width', window.innerWidth)
     }
 
   } catch (error) {
@@ -612,6 +674,7 @@ function resetApp() {
   // tear down sections that were created dynamically during the session
   document.getElementById('career-cards-section')?.remove()
   document.getElementById('scroll-arrow')?.remove()
+  document.getElementById('mindmap-scroll-hint')?.remove()
 
   // clear the SVG and re-hide the mind map container
   const mindmapContainer = document.getElementById('mindmap-container')

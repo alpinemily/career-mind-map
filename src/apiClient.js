@@ -1,5 +1,5 @@
 export const ERROR_MESSAGE        = "Something went wrong. Text Emily and let her know? If you don't know Emily, um, why are you even here?"
-export const RATE_LIMIT_MESSAGE   = "You've hit the daily usage limit. Come back tomorrow. Emily's api credit budget thanks you 🥺👉👈. As a consolation, enjoy staring at this spiral."
+export const RATE_LIMIT_MESSAGE   = "You've hit the daily usage limit. Emily's api credit budget thanks you 🥺👉👈. Come back tomorrow, and in the meanwhile you may enjoy staring at this spiral."
 export const FLAGGED_MESSAGE      = "Something went wrong. Please try different words."
 
 // Parse Claude's response text as JSON. Claude occasionally refuses with prose instead of
@@ -41,7 +41,7 @@ async function postToWorker(path, prompt, meta = {}) {
   const data = await response.json()
   return data.content[0].text
 }
-
+ 
 export const callClaudeAssociations = (prompt)       => postToWorker('/word-webs', prompt)
 export const callClaudeCareers      = (prompt, meta) => postToWorker('/careers', prompt, meta)
 

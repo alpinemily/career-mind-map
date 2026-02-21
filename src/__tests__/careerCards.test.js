@@ -181,6 +181,73 @@ describe('career cards section — start over button', () => {
   })
 })
 
+// ── tone toggle / caching cycle ───────────────────────────────────────────────
+//
+// These tests simulate what main.js does when the user clicks the tone button:
+// createCareerCardsSection is called again with different ideas and currentTone.
+// They verify that the button stays alive, labels stay correct, and cards reflect
+// whichever set of ideas was passed in (fresh API call or careerCache hit —
+// from careers.js's perspective both look identical).
+
+const PLAYFUL_IDEAS = [
+  { groupIndex: 0, title: 'Rhythm Entrepreneur',  description: 'Start a rhythm business.' },
+  { groupIndex: 1, title: 'Data Nature Guide',    description: 'Guide data in nature.'    },
+  { groupIndex: 2, title: 'Code Story Weaver',    description: 'Weave code stories.'      },
+]
+
+describe('career cards section — tone toggle cycle', () => {
+  it('tone button is still present after switching from serious to playful', () => {
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful' })
+    expect(document.getElementById('switch-tone-btn')).not.toBeNull()
+  })
+
+  it('button label flips to "Try Serious ideas instead" after switching to playful', () => {
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful' })
+    expect(document.getElementById('switch-tone-btn').textContent).toBe('Try Serious ideas instead')
+  })
+
+  it('clicking the button after switching to playful calls onSwitchTone("serious")', () => {
+    setup(IDEAS, GROUPS, { currentTone: 'serious' })
+    const onSwitchTone = vi.fn()
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful', onSwitchTone })
+    document.getElementById('switch-tone-btn').click()
+    expect(onSwitchTone).toHaveBeenCalledWith('serious')
+  })
+
+  it('cards show playful titles after switching to playful', () => {
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful' })
+    const titles = Array.from(document.querySelectorAll('.card-title')).map(el => el.textContent)
+    expect(titles).toEqual(PLAYFUL_IDEAS.map(i => i.title))
+  })
+
+  it('switching back to serious (cache hit) shows the original cards', () => {
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful' })
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    const titles = Array.from(document.querySelectorAll('.card-title')).map(el => el.textContent)
+    expect(titles).toEqual(IDEAS.map(i => i.title))
+  })
+
+  it('button label flips back to "Try Playful ideas instead" after returning to serious', () => {
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful' })
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    expect(document.getElementById('switch-tone-btn').textContent).toBe('Try Playful ideas instead')
+  })
+
+  it('tone button is present throughout a full serious → playful → serious cycle', () => {
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    expect(document.getElementById('switch-tone-btn')).not.toBeNull()
+    setup(PLAYFUL_IDEAS, GROUPS, { currentTone: 'playful' })
+    expect(document.getElementById('switch-tone-btn')).not.toBeNull()
+    setup(IDEAS,         GROUPS, { currentTone: 'serious' })
+    expect(document.getElementById('switch-tone-btn')).not.toBeNull()
+  })
+})
+
 // ── scroll arrow ──────────────────────────────────────────────────────────────
 
 describe('career cards section — scroll arrow', () => {

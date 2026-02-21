@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   state, MAX_MASHES,
   resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash,
@@ -32,6 +32,13 @@ const SIDEBAR_HTML = `
   <div id="mash-list"></div>
   <div id="generate-section" class="hidden"></div>
   <div id="max-note" class="hidden"></div>
+`
+
+const SIDEBAR_WITH_RANDOMIZE_HTML = `
+  <div id="mash-list"></div>
+  <div id="generate-section" class="hidden"></div>
+  <div id="max-note" class="hidden"></div>
+  <button id="randomize-btn">Randomize</button>
 `
 
 // ── state reset ───────────────────────────────────────────────────────────────
@@ -274,5 +281,148 @@ describe('randomizeMash', () => {
     randomizeMash()
     expect(state.selectedNodes).toHaveLength(0)
     expect(existingEl.classList.contains('selected')).toBe(false)
+  })
+})
+
+// ── random-highlight timing ────────────────────────────────────────────────
+
+describe('randomizeMash — random-highlight timing', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    resetSelectionState()
+    document.body.innerHTML = SIDEBAR_WITH_RANDOMIZE_HTML
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('random-highlight is present on all 3 nodes immediately after randomizing', () => {
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    const picked = randomizeMash()
+    picked.forEach(n => expect(n.element.classList.contains('random-highlight')).toBe(true))
+  })
+
+  it('random-highlight is still present just before 1500 ms elapses', () => {
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    const picked = randomizeMash()
+    vi.advanceTimersByTime(1499)
+    picked.forEach(n => expect(n.element.classList.contains('random-highlight')).toBe(true))
+  })
+
+  it('random-highlight is removed after 1500 ms', () => {
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    const picked = randomizeMash()
+    vi.advanceTimersByTime(1500)
+    picked.forEach(n => expect(n.element.classList.contains('random-highlight')).toBe(false))
+  })
+
+  it('does not apply random-highlight when fewer than 3 nodes exist (early return)', () => {
+    state.allTertiaryNodes = [makeTertiaryNode('a'), makeTertiaryNode('b')]
+    randomizeMash()
+    state.allTertiaryNodes.forEach(n =>
+      expect(n.element.classList.contains('random-highlight')).toBe(false)
+    )
+  })
+
+  it('does not apply random-highlight when already at MAX_MASHES (early return)', () => {
+    for (let i = 0; i < MAX_MASHES; i++) state.mashGroups.push(['x', 'y', 'z'])
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    randomizeMash()
+    state.allTertiaryNodes.forEach(n =>
+      expect(n.element.classList.contains('random-highlight')).toBe(false)
+    )
+  })
+})
+
+// ── finalizeMash — randomize button at MAX_MASHES ─────────────────────────
+
+describe('finalizeMash — randomize button disabled at MAX_MASHES', () => {
+  beforeEach(() => {
+    resetSelectionState()
+    document.body.innerHTML = SIDEBAR_WITH_RANDOMIZE_HTML
+  })
+
+  it('disables #randomize-btn when finalizeMash brings total to MAX_MASHES', () => {
+    for (let i = 0; i < MAX_MASHES - 1; i++) state.mashGroups.push(['x', 'y', 'z'])
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    expect(document.getElementById('randomize-btn').disabled).toBe(true)
+  })
+
+  it('does NOT disable #randomize-btn when below MAX_MASHES after finalizeMash', () => {
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    expect(document.getElementById('randomize-btn').disabled).toBe(false)
+  })
+
+  it('does not throw when #randomize-btn is absent from the DOM', () => {
+    document.body.innerHTML = SIDEBAR_HTML
+    for (let i = 0; i < MAX_MASHES - 1; i++) state.mashGroups.push(['x', 'y', 'z'])
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    expect(() => finalizeMash()).not.toThrow()
+  })
+})
+
+// ── finalizeMash — clearDelay keeps selected class visible ────────────────
+
+describe('finalizeMash — clearDelay animation timing', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    resetSelectionState()
+    document.body.innerHTML = SIDEBAR_HTML
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('removes selected class immediately when clearDelay is 0', () => {
+    const el = makeEl('a')
+    el.classList.add('selected')
+    state.selectedNodes = [{ id: 'a', label: 'a', element: el }]
+    finalizeMash(0)
+    expect(el.classList.contains('selected')).toBe(false)
+  })
+
+  it('keeps selected class during the delay when clearDelay > 0', () => {
+    const el = makeEl('a')
+    el.classList.add('selected')
+    state.selectedNodes = [{ id: 'a', label: 'a', element: el }]
+    finalizeMash(1500)
+    expect(el.classList.contains('selected')).toBe(true)
+  })
+
+  it('removes selected class after clearDelay ms have elapsed', () => {
+    const el = makeEl('a')
+    el.classList.add('selected')
+    state.selectedNodes = [{ id: 'a', label: 'a', element: el }]
+    finalizeMash(1500)
+    vi.advanceTimersByTime(1500)
+    expect(el.classList.contains('selected')).toBe(false)
+  })
+
+  it('still present on element just before clearDelay elapses', () => {
+    const el = makeEl('a')
+    el.classList.add('selected')
+    state.selectedNodes = [{ id: 'a', label: 'a', element: el }]
+    finalizeMash(1500)
+    vi.advanceTimersByTime(1499)
+    expect(el.classList.contains('selected')).toBe(true)
+  })
+
+  it('clears selectedNodes from state immediately even with a clearDelay', () => {
+    const el = makeEl('a')
+    state.selectedNodes = [{ id: 'a', label: 'a', element: el }]
+    finalizeMash(1500)
+    expect(state.selectedNodes).toHaveLength(0)
+  })
+
+  it('clears all 3 elements after delay when a full group is finalized with delay', () => {
+    const els = ['a', 'b', 'c'].map(id => { const el = makeEl(id); el.classList.add('selected'); return el })
+    state.selectedNodes = els.map((el, i) => ({ id: String(i), label: String(i), element: el }))
+    finalizeMash(1500)
+    vi.advanceTimersByTime(1500)
+    els.forEach(el => expect(el.classList.contains('selected')).toBe(false))
   })
 })

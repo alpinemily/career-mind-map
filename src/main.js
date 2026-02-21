@@ -9,6 +9,12 @@ import { updateGenerateBtn } from './formValidation.js'
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
 const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
 
+function triggerRipple(element, multi = false) {
+  element.classList.remove('ripple', 'ripple-multi')
+  void element.getBoundingClientRect() // force reflow so animation restarts
+  element.classList.add(multi ? 'ripple-multi' : 'ripple')
+}
+
 function setButtonLoading(btn, label) {
   btn.disabled = true
   btn.innerHTML = `${label} <span class="btn-dots"><span></span><span></span><span></span></span>`
@@ -249,12 +255,19 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
     .attr('text-anchor', 'middle')
     .style('pointer-events', d => d.level === 2 ? 'all' : 'none')
 
+  // Ripple circle for tertiary nodes (sits on top, animated via CSS)
+  node.filter(d => d.level === 2)
+    .append('circle')
+    .attr('r', 14)
+    .attr('class', 'node-ripple')
+
   // Add click handlers for tertiary nodes
   node.filter(d => d.level === 2)
     .style('cursor', 'pointer')
     .on('click', function(event, d) {
       event.stopPropagation()
-      handleNodeClick(this, d)
+      handleNodeClick(this, d, 1500)
+      if (state.mashGroups.length < MAX_MASHES) triggerRipple(this)
     })
 
   // Store references to tertiary nodes
@@ -262,7 +275,8 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
     state.allTertiaryNodes.push({
       element: this,
       data: d,
-      offsetX: offsetX
+      offsetX: offsetX,
+      category: categoryName
     })
   })
 }
@@ -673,6 +687,7 @@ function resetApp() {
   const generateBtn = document.getElementById('generate-btn')
   generateBtn.style.display = 'block'
   generateBtn.disabled = false
+  document.getElementById('randomize-btn').disabled = false
 
   // snap to top while still invisible so the form is in view before fade-in starts
   window.scrollTo(0, 0)
@@ -689,7 +704,12 @@ function init() {
   updateGenerateBtn(keywordInputs, generateBtn) // set initial state
 
   // Randomize button
-  document.getElementById('randomize-btn').addEventListener('click', randomizeMash)
+  const randomizeBtn = document.getElementById('randomize-btn')
+  randomizeBtn.addEventListener('click', () => {
+    const picked = randomizeMash()
+    picked?.forEach(({ element }) => triggerRipple(element))
+    if (state.mashGroups.length >= MAX_MASHES) randomizeBtn.disabled = true
+  })
 
   // Tone toggle buttons
   document.querySelectorAll('.tone-btn').forEach(btn => {
@@ -702,6 +722,16 @@ function init() {
 
   // Generate career ideas button
   document.getElementById('generate-careers-btn').addEventListener('click', generateCareerIdeas)
+
+  // Click a mash pill → ripple its 3 source nodes 3 times
+  document.getElementById('mash-list').addEventListener('click', e => {
+    const pill = e.target.closest('.mash-group:not(.staging)')
+    if (!pill?.dataset.labels) return
+    const labels = new Set(pill.dataset.labels.split(','))
+    state.allTertiaryNodes
+      .filter(({ data }) => labels.has(data.label))
+      .forEach(({ element }) => triggerRipple(element, true))
+  })
 
   // Dev mode setup
   if (DEV_MODE) {
@@ -753,6 +783,10 @@ function init() {
       loading.classList.add('hidden')
       await showMindMap()
       renderMindMap(data)
+      // Ripple all edge nodes on load with organic random delays
+      state.allTertiaryNodes.forEach(({ element }) => {
+        setTimeout(() => triggerRipple(element), Math.random() * 700)
+      })
     } catch (error) {
       console.error(error)
       showErrorBar(error.message)

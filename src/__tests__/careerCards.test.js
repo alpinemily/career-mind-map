@@ -72,11 +72,17 @@ describe('career cards section — header', () => {
     expect(document.getElementById('share-results-btn')).not.toBeNull()
   })
 
-  it('places title and share button inside a .career-section-header row', () => {
+  it('places title inside a .career-section-header row', () => {
     const header = document.querySelector('.career-section-header')
     expect(header).not.toBeNull()
     expect(header.contains(document.querySelector('h2'))).toBe(true)
-    expect(header.contains(document.getElementById('share-results-btn'))).toBe(true)
+  })
+
+  it('places share button inside .career-actions (not the header)', () => {
+    const actions = document.querySelector('.career-actions')
+    expect(actions.contains(document.getElementById('share-results-btn'))).toBe(true)
+    const header = document.querySelector('.career-section-header')
+    expect(header.contains(document.getElementById('share-results-btn'))).toBe(false)
   })
 
   it('calls onShare when the share button is clicked', () => {

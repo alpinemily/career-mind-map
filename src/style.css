@@ -765,26 +765,21 @@ button.hidden {
   background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
 }
 
-/* Header row: title centered, share button right */
+/* Header row: title only, centered */
 .career-section-header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
   max-width: 1200px;
   width: 100%;
   margin-bottom: 2rem;
+  text-align: center;
 }
 
 .career-section-header h2 {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   margin: 0;
 }
 
 #career-cards-section h2 {
-  font-size: 2rem;
+  font-size: clamp(1.1rem, 4.5vw, 2rem);
+  white-space: nowrap;
   margin: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -865,13 +860,12 @@ button.hidden {
   line-height: 1.5;
 }
 
-/* Share button in header row */
+/* Share button in actions row */
 #share-results-btn {
-  padding: 0.55rem 1.2rem;
-  font-size: 0.85rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
   background: linear-gradient(135deg, #30cfd0 0%, #43e97b 100%);
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* Action buttons row below career cards */

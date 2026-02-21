@@ -30,7 +30,7 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
   const section = document.createElement('div')
   section.id = 'career-cards-section'
 
-  // Header row: title on the left, share button on the right
+  // Header: title only
   const headerRow = document.createElement('div')
   headerRow.className = 'career-section-header'
 
@@ -43,15 +43,6 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
     title.appendChild(badge)
   }
   headerRow.appendChild(title)
-
-  const shareBtn = document.createElement('button')
-  shareBtn.id = 'share-results-btn'
-  const isMobileDevice = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-  const shareBtnLabel = 'Share results'
-  shareBtn.textContent = shareBtnLabel
-  shareBtn.dataset.label = shareBtnLabel
-  shareBtn.addEventListener('click', onShare)
-  headerRow.appendChild(shareBtn)
 
   section.appendChild(headerRow)
 
@@ -87,7 +78,16 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
   const actionsDiv = document.createElement('div')
   actionsDiv.className = 'career-actions'
 
-  // Switch tone button — hidden after the user has already switched once
+  // Share button — first in actions row (primary CTA after viewing results)
+  const shareBtn = document.createElement('button')
+  shareBtn.id = 'share-results-btn'
+  const shareBtnLabel = 'Share results'
+  shareBtn.textContent = shareBtnLabel
+  shareBtn.dataset.label = shareBtnLabel
+  shareBtn.addEventListener('click', onShare)
+  actionsDiv.appendChild(shareBtn)
+
+  // Switch tone button
   if (showToneSwitch) {
     const alternateTone = currentTone === 'serious' ? 'playful' : 'serious'
     const toneLabel     = alternateTone === 'playful' ? 'Playful' : 'Serious'

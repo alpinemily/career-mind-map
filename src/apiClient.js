@@ -1,5 +1,5 @@
 export const ERROR_MESSAGE        = "Something went wrong. Text Emily and let her know? If you don't know Emily, um, why are you even here?"
-export const RATE_LIMIT_MESSAGE   = "You've hit the daily usage limit. Come back tomorrow. Emily's api credit budget thanks you. 🥺👉👈"
+export const RATE_LIMIT_MESSAGE   = "You've hit the daily usage limit. Come back tomorrow. Emily's api credit budget thanks you 🥺👉👈. As a consolation, enjoy staring at this spiral."
 export const FLAGGED_MESSAGE      = "Something went wrong. Please try different words."
 
 // Parse Claude's response text as JSON. Claude occasionally refuses with prose instead of

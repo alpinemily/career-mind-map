@@ -3,14 +3,16 @@ import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
 import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
 import { createCareerCardsSection } from './careers.js'
-import { callClaudeAssociations, callClaudeCareers, callClaudeDirect, parseClaudeJSON } from './apiClient.js'
+import { callClaudeAssociations, callClaudeCareers, callClaudeDirect, parseClaudeJSON, RATE_LIMIT_MESSAGE } from './apiClient.js'
 import { updateGenerateBtn } from './formValidation.js'
 import { parseCompactAssociations } from './parseAssociations.js'
 
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
-const DEV_MODE     = new URLSearchParams(window.location.search).has('dev')
+const DEV_MODE      = new URLSearchParams(window.location.search).has('dev')
 // Staging mode: add ?staging to use a UI-entered API key and call Claude directly
-const STAGING_MODE = new URLSearchParams(window.location.search).has('staging')
+const STAGING_MODE  = new URLSearchParams(window.location.search).has('staging')
+// Rate-limit preview: add ?spiral to immediately show the spiral animation
+const SPIRAL_VIEW_MODE = new URLSearchParams(window.location.search).has('spiral')
 
 // Career ideas keyed by tone ('serious' / 'playful') — avoids a second API call when
 // the user toggles between tones after both have been generated once.
@@ -745,6 +747,8 @@ function resetApp() {
   document.getElementById('career-cards-section')?.remove()
   document.getElementById('scroll-arrow')?.remove()
   document.getElementById('mindmap-scroll-hint')?.remove()
+  document.getElementById('rate-limit-spiral')?.remove()
+  document.getElementById('rate-limit-spiral-style')?.remove()
 
   // clear the SVG and re-hide the mind map container
   const mindmapContainer = document.getElementById('mindmap-container')
@@ -792,6 +796,72 @@ function resetApp() {
   window.scrollTo(0, 0)
   document.body.style.transition = 'opacity 0.4s ease-in'
   document.body.style.opacity = '1'
+}
+
+function showRateLimitSpiral() {
+  document.getElementById('rate-limit-spiral')?.remove()
+  document.getElementById('rate-limit-spiral-style')?.remove()
+
+  const W  = window.innerWidth
+  const H  = window.innerHeight
+  const cx = W / 2
+  const cy = H / 2
+  // Extend past the farthest corner so the spiral truly fills the viewport
+  const maxR = Math.hypot(cx, cy) + 30
+
+  // Archimedean spiral: r = a·θ, coil spacing = 2π·a
+  const coilSpacing = 52
+  const a           = coilSpacing / (2 * Math.PI)
+  const maxTheta    = maxR / a
+
+  // ~18 sample points per radian keeps line segments small enough to look curved
+  const steps = Math.ceil(maxTheta * 18)
+  const parts = []
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * maxTheta
+    const r = a * t
+    const x = (cx + r * Math.cos(t)).toFixed(1)
+    const y = (cy + r * Math.sin(t)).toFixed(1)
+    parts.push(i === 0 ? `M${x},${y}` : `L${x},${y}`)
+  }
+
+  const NS  = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(NS, 'svg')
+  svg.id = 'rate-limit-spiral'
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`)
+  svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;'
+
+  const path = document.createElementNS(NS, 'path')
+  path.setAttribute('d', parts.join(''))
+  path.setAttribute('fill', 'none')
+  path.setAttribute('stroke', 'rgba(255,255,255,0.18)')
+  path.setAttribute('stroke-width', '1')
+  path.setAttribute('stroke-linecap', 'round')
+  svg.appendChild(path)
+  document.body.appendChild(svg)
+
+  // getTotalLength() requires the element to be in the DOM
+  const len     = Math.ceil(path.getTotalLength())
+  const styleEl = document.createElement('style')
+  styleEl.id    = 'rate-limit-spiral-style'
+  styleEl.textContent = `
+    @keyframes spiral-draw {
+      from { stroke-dashoffset: ${len}; }
+      to   { stroke-dashoffset: 0; }
+    }
+    @keyframes spiral-breathe {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.4; }
+    }
+  `
+  document.head.appendChild(styleEl)
+
+  // Draw in over 30 s, then softly pulse forever
+  path.style.strokeDasharray  = len
+  path.style.strokeDashoffset = len
+  path.style.animation =
+    'spiral-draw 750s linear forwards, ' +
+    'spiral-breathe 250s ease-in-out 750s infinite'
 }
 
 function createLandingBg() {
@@ -988,14 +1058,22 @@ function init() {
       console.error(error)
       showErrorBar(error.message)
       loading.classList.add('hidden')
-      document.getElementById('form-container').style.visibility = 'visible'
-      document.getElementById('form-container').classList.remove('hidden')
-      btn.style.display = 'block'
-      btn.disabled = false
       document.querySelectorAll('.keyword-floater').forEach(el => el.remove())
-      document.getElementById('keywords-display').classList.add('hidden')
+
+      if (error.message === RATE_LIMIT_MESSAGE) {
+        // Rate limited: leave the form hidden and fill the screen with the spiral
+        showRateLimitSpiral()
+      } else {
+        document.getElementById('form-container').style.visibility = 'visible'
+        document.getElementById('form-container').classList.remove('hidden')
+        btn.style.display = 'block'
+        btn.disabled = false
+        document.getElementById('keywords-display').classList.add('hidden')
+      }
     }
   })
+
+  if (SPIRAL_VIEW_MODE) showRateLimitSpiral()
 }
 
 createLandingBg()

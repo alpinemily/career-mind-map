@@ -35,7 +35,7 @@ export default {
       const ip    = request.headers.get('CF-Connecting-IP') || 'unknown'
       const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
       const kvKey = `${path}:${ip}:${today}`
-      const count = parseInt((await env.RATE_LIMIT.get(kvKey)) || '0')
+      const count = parseInt((await env.CAREER_MIND_MAP_RATE_LIMIT.get(kvKey)) || '0')
 
       if (count >= WORD_WEBS_DAILY_LIMIT) {
         return new Response(
@@ -45,7 +45,7 @@ export default {
       }
 
       // Increment counter with a 25-hour TTL (rolls over cleanly across timezones)
-      await env.RATE_LIMIT.put(kvKey, String(count + 1), { expirationTtl: 90000 })
+      await env.CAREER_MIND_MAP_RATE_LIMIT.put(kvKey, String(count + 1), { expirationTtl: 90000 })
     }
 
     // Proxy to Claude

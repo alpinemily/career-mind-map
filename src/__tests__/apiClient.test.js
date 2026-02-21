@@ -9,11 +9,20 @@ function mockFetch(status, body) {
   }))
 }
 
+function mockFetchNetworkError() {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+}
+
 beforeEach(() => vi.unstubAllGlobals())
 
 // ── error handling ─────────────────────────────────────────────────────────
 
 describe('callClaudeAssociations — errors', () => {
+  it('throws ERROR_MESSAGE on a network failure (e.g. CORS error)', async () => {
+    mockFetchNetworkError()
+    await expect(callClaudeAssociations('prompt')).rejects.toThrow(ERROR_MESSAGE)
+  })
+
   it('throws ERROR_MESSAGE on a 400', async () => {
     mockFetch(400, {})
     await expect(callClaudeAssociations('prompt')).rejects.toThrow(ERROR_MESSAGE)
@@ -41,6 +50,11 @@ describe('callClaudeAssociations — errors', () => {
 })
 
 describe('callClaudeCareers — errors', () => {
+  it('throws ERROR_MESSAGE on a network failure (e.g. CORS error)', async () => {
+    mockFetchNetworkError()
+    await expect(callClaudeCareers('prompt')).rejects.toThrow(ERROR_MESSAGE)
+  })
+
   it('throws ERROR_MESSAGE on a 400', async () => {
     mockFetch(400, {})
     await expect(callClaudeCareers('prompt')).rejects.toThrow(ERROR_MESSAGE)
@@ -65,11 +79,11 @@ describe('callClaudeAssociations — success', () => {
     expect(await callClaudeAssociations('prompt')).toBe('result')
   })
 
-  it('calls fetch with the /associations path', async () => {
+  it('calls fetch with the /word-webs path', async () => {
     mockFetch(200, { content: [{ text: 'ok' }] })
     await callClaudeAssociations('prompt')
     const [url] = vi.mocked(fetch).mock.calls[0]
-    expect(url).toContain('/associations')
+    expect(url).toContain('/word-webs')
   })
 
   it('does not send an x-api-key header', async () => {

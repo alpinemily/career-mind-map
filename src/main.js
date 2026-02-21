@@ -3,7 +3,7 @@ import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
 import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
 import { createCareerCardsSection } from './careers.js'
-import { callClaudeAssociations, callClaudeCareers, callClaudeDirect, parseClaudeJSON, RATE_LIMIT_MESSAGE } from './apiClient.js'
+import { callClaudeAssociations, callClaudeCareers, callClaudeDirect, parseClaudeJSON, RATE_LIMIT_MESSAGE, callLogShare } from './apiClient.js'
 import { updateGenerateBtn } from './formValidation.js'
 import { parseCompactAssociations } from './parseAssociations.js'
 
@@ -17,6 +17,10 @@ const SPIRAL_VIEW_MODE = new URLSearchParams(window.location.search).has('spiral
 // Career ideas keyed by tone ('serious' / 'playful') — avoids a second API call when
 // the user toggles between tones after both have been generated once.
 const careerCache = {}
+
+// Original form keywords — stored at submission time so they can be included in
+// career-generation and share-click logs without re-reading the (by then hidden) inputs.
+let sessionKeywords = { engagement: '', energy: '', flow: '' }
 
 function getStagingApiKey() {
   const key = document.getElementById('staging-api-key')?.value.trim()
@@ -381,9 +385,10 @@ async function generateCareerIdeas() {
         `${i + 1}. ${group.join(', ')}`
       ).join('\n')
       const prompt = buildCareerPrompt(state.selectedTone, groupingsText)
+      const meta   = { ...sessionKeywords, tone: state.selectedTone }
       const response = STAGING_MODE
         ? await callClaudeDirect(getStagingApiKey(), prompt)
-        : await callClaudeCareers(prompt)
+        : await callClaudeCareers(prompt, meta)
       careerIdeas = parseClaudeJSON(response).map((idea, i) => ({
         groupIndex: i, title: idea.t, description: idea.d,
       }))
@@ -493,9 +498,10 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
         `${i + 1}. ${group.join(', ')}`
       ).join('\n')
       const prompt = buildCareerPrompt(alternateTone, groupingsText)
+      const meta   = { ...sessionKeywords, tone: alternateTone }
       const response = STAGING_MODE
         ? await callClaudeDirect(getStagingApiKey(), prompt)
-        : await callClaudeCareers(prompt)
+        : await callClaudeCareers(prompt, meta)
       careerIdeas = parseClaudeJSON(response).map((idea, i) => ({
         groupIndex: i, title: idea.t, description: idea.d,
       }))
@@ -523,6 +529,11 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
 
 // Share results as image
 async function shareResults() {
+  // Log the share click immediately — fire-and-forget, never blocks the flow
+  if (!DEV_MODE && !STAGING_MODE) {
+    callLogShare(sessionKeywords.engagement, sessionKeywords.energy, sessionKeywords.flow, state.selectedTone)
+  }
+
   const btn = document.getElementById('share-results-btn')
   if (btn) {
     btn.disabled = true
@@ -742,6 +753,7 @@ function resetApp() {
   resetSelectionState() // clears selectedNodes, mashGroups, allTertiaryNodes, selectedTone
   careerCache.serious = null
   careerCache.playful = null
+  sessionKeywords     = { engagement: '', energy: '', flow: '' }
 
   // tear down sections that were created dynamically during the session
   document.getElementById('career-cards-section')?.remove()
@@ -1025,6 +1037,8 @@ function init() {
     if (STAGING_MODE && !document.getElementById('staging-api-key')?.value.trim()) {
       showErrorBar('Please enter your Claude API key for staging mode'); return
     }
+
+    sessionKeywords = { engagement, energy, flow }
 
     const btn = document.getElementById('generate-btn')
     btn.disabled = true

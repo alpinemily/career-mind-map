@@ -18,16 +18,17 @@ export function parseClaudeJSON(rawText) {
 
 const WORKER = import.meta.env.VITE_WORKER_URL ?? ''
 
-async function postToWorker(path, prompt) {
+async function postToWorker(path, prompt, meta = {}) {
   let response
   try {
     response = await fetch(`${WORKER}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model:    'claude-sonnet-4-20250514',
+        model:      'claude-sonnet-4-20250514',
         max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }],
+        messages:   [{ role: 'user', content: prompt }],
+        ...(Object.keys(meta).length > 0 && { _meta: meta }),
       }),
     })
   } catch {
@@ -41,8 +42,19 @@ async function postToWorker(path, prompt) {
   return data.content[0].text
 }
 
-export const callClaudeAssociations = (prompt) => postToWorker('/word-webs', prompt)
-export const callClaudeCareers      = (prompt) => postToWorker('/careers',      prompt)
+export const callClaudeAssociations = (prompt)       => postToWorker('/word-webs', prompt)
+export const callClaudeCareers      = (prompt, meta) => postToWorker('/careers', prompt, meta)
+
+// Fire-and-forget share-click log. Never throws — logging must not affect UX.
+export async function callLogShare(engagement, energy, flow, tone) {
+  try {
+    await fetch(`${WORKER}/log-share`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ engagement, energy, flow, tone }),
+    })
+  } catch {}
+}
 
 // Staging mode: hit Claude directly with a user-supplied key (bypasses the Worker)
 export async function callClaudeDirect(apiKey, prompt) {

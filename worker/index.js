@@ -17,7 +17,7 @@
 // (initial generate + one optional tone switch), so the word-webs limit is sufficient.
 const WORD_WEBS_DAILY_LIMIT = 5
 const CAREERS_DAILY_LIMIT   = WORD_WEBS_DAILY_LIMIT * 2
-const ALLOWED_PATHS = new Set(['/word-webs', '/careers'])
+const ALLOWED_PATHS = new Set(['/word-webs', '/careers', '/log-share'])
 
 export default {
   async fetch(request, env, ctx) {
@@ -51,6 +51,22 @@ export default {
       await env.CAREER_MIND_MAP_RATE_LIMIT.put(kvKey, String(count + 1), { expirationTtl: 90000 })
     }
 
+    // Share button was clicked on the client — just log it and return, nothing to proxy
+    if (path === '/log-share') {
+      if (env.LOGTAIL_TOKEN) {
+        const body = await request.json()
+        ctx.waitUntil(logToLogtail(env.LOGTAIL_TOKEN, {
+          message:    'career-mind-map share-click',
+          engagement: body.engagement ?? '',
+          energy:     body.energy     ?? '',
+          flow:       body.flow       ?? '',
+          tone:       body.tone       ?? 'serious',
+          ip:         request.headers.get('CF-Connecting-IP') || 'unknown',
+        }))
+      }
+      return new Response('ok', { status: 200, headers: corsHeaders(request, env) })
+    }
+
     if (path === '/careers') {
       const ip    = request.headers.get('CF-Connecting-IP') || 'unknown'
       const today = new Date().toISOString().slice(0, 10)
@@ -70,9 +86,12 @@ export default {
     // Proxy to Claude
     const body = await request.json()
 
+    // Strip our metadata field before forwarding — Claude doesn't know about it
+    const { _meta = {}, ...claudeBody } = body
+
     // Log keyword inputs from /word-webs submissions to Better Stack (fire-and-forget)
     if (path === '/word-webs' && env.LOGTAIL_TOKEN) {
-      const prompt     = body.messages?.[0]?.content ?? ''
+      const prompt     = claudeBody.messages?.[0]?.content ?? ''
       const engagement = prompt.match(/ENGAGEMENT: "([^"]+)"/)?.[1] ?? ''
       const energy     = prompt.match(/ENERGY: "([^"]+)"/)?.[1]     ?? ''
       const flow       = prompt.match(/FLOW: "([^"]+)"/)?.[1]       ?? ''
@@ -92,10 +111,33 @@ export default {
         'x-api-key':         env.CLAUDE_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(claudeBody),
     })
 
     const data = await claudeRes.json()
+
+    // Log career card generation to Better Stack (fire-and-forget)
+    if (path === '/careers' && env.LOGTAIL_TOKEN && claudeRes.ok) {
+      const rawText = data.content?.[0]?.text ?? ''
+      let careers = []
+      try {
+        const cleaned = rawText.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
+        const parsed  = JSON.parse(cleaned)
+        if (Array.isArray(parsed)) {
+          careers = parsed.map(c => ({ title: c.t, description: c.d }))
+        }
+      } catch {}
+      ctx.waitUntil(logToLogtail(env.LOGTAIL_TOKEN, {
+        message:    'career-mind-map careers-generated',
+        engagement: _meta.engagement ?? '',
+        energy:     _meta.energy     ?? '',
+        flow:       _meta.flow       ?? '',
+        tone:       _meta.tone       ?? 'serious',
+        careers,
+        ip:         request.headers.get('CF-Connecting-IP') || 'unknown',
+      }))
+    }
+
     return new Response(JSON.stringify(data), {
       status: claudeRes.status,
       headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) },

@@ -16,6 +16,7 @@
 // /careers is not rate limited — the UI caps it to 2 calls per session at most
 // (initial generate + one optional tone switch), so the word-webs limit is sufficient.
 const WORD_WEBS_DAILY_LIMIT = 5
+const CAREERS_DAILY_LIMIT   = WORD_WEBS_DAILY_LIMIT * 2
 const ALLOWED_PATHS = new Set(['/word-webs', '/careers'])
 
 export default {
@@ -47,6 +48,22 @@ export default {
       }
 
       // Increment counter with a 25-hour TTL (rolls over cleanly across timezones)
+      await env.CAREER_MIND_MAP_RATE_LIMIT.put(kvKey, String(count + 1), { expirationTtl: 90000 })
+    }
+
+    if (path === '/careers') {
+      const ip    = request.headers.get('CF-Connecting-IP') || 'unknown'
+      const today = new Date().toISOString().slice(0, 10)
+      const kvKey = `${path}:${ip}:${today}`
+      const count = parseInt((await env.CAREER_MIND_MAP_RATE_LIMIT.get(kvKey)) || '0')
+
+      if (count >= CAREERS_DAILY_LIMIT) {
+        return new Response(
+          JSON.stringify({ error: 'rate_limit_exceeded' }),
+          { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders(request, env) } }
+        )
+      }
+
       await env.CAREER_MIND_MAP_RATE_LIMIT.put(kvKey, String(count + 1), { expirationTtl: 90000 })
     }
 

@@ -42,7 +42,7 @@ async function postToWorker(path, prompt, meta = {}) {
   return data.content[0].text
 }
  
-export const callClaudeAssociations = (prompt)       => postToWorker('/word-webs', prompt)
+export const callClaudeAssociations = (prompt)       => postToWorker('/mind-maps', prompt)
 export const callClaudeCareers      = (prompt, meta) => postToWorker('/careers', prompt, meta)
 
 // Fire-and-forget share-click log. Never throws — logging must not affect UX.

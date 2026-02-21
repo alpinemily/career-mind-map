@@ -12,12 +12,12 @@
 //      and enter your Better Stack source token
 //   7. wrangler deploy
 
-// /word-webs is rate limited to 5/day per IP (one per session).
+// /mind-maps is rate limited to 5/day per IP (one per session).
 // /careers is not rate limited — the UI caps it to 2 calls per session at most
-// (initial generate + one optional tone switch), so the word-webs limit is sufficient.
-const WORD_WEBS_DAILY_LIMIT = 5
+// (initial generate + one optional tone switch), so the mind-maps limit is sufficient.
+const WORD_WEBS_DAILY_LIMIT = 8
 const CAREERS_DAILY_LIMIT   = WORD_WEBS_DAILY_LIMIT * 2
-const ALLOWED_PATHS = new Set(['/word-webs', '/careers', '/log-share'])
+const ALLOWED_PATHS = new Set(['/mind-maps', '/careers', '/log-share'])
 
 export default {
   async fetch(request, env, ctx) {
@@ -34,7 +34,7 @@ export default {
       return new Response('Not found', { status: 404 })
     }
 
-    if (path === '/word-webs') {
+    if (path === '/mind-maps') {
       const ip    = request.headers.get('CF-Connecting-IP') || 'unknown'
       const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
       const kvKey = `${path}:${ip}:${today}`
@@ -89,8 +89,8 @@ export default {
     // Strip our metadata field before forwarding — Claude doesn't know about it
     const { _meta = {}, ...claudeBody } = body
 
-    // Log keyword inputs from /word-webs submissions to Better Stack (fire-and-forget)
-    if (path === '/word-webs' && env.LOGTAIL_TOKEN) {
+    // Log keyword inputs from /mind-maps submissions to Better Stack (fire-and-forget)
+    if (path === '/mind-maps' && env.LOGTAIL_TOKEN) {
       const prompt     = claudeBody.messages?.[0]?.content ?? ''
       const engagement = prompt.match(/ENGAGEMENT: "([^"]+)"/)?.[1] ?? ''
       const energy     = prompt.match(/ENERGY: "([^"]+)"/)?.[1]     ?? ''

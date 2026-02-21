@@ -118,11 +118,11 @@ describe('callClaudeAssociations — success', () => {
     expect(await callClaudeAssociations('prompt')).toBe('result')
   })
 
-  it('calls fetch with the /word-webs path', async () => {
+  it('calls fetch with the /mind-maps path', async () => {
     mockFetch(200, { content: [{ text: 'ok' }] })
     await callClaudeAssociations('prompt')
     const [url] = vi.mocked(fetch).mock.calls[0]
-    expect(url).toContain('/word-webs')
+    expect(url).toContain('/mind-maps')
   })
 
   it('does not send an x-api-key header', async () => {

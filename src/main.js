@@ -539,38 +539,66 @@ async function shareResults() {
     // Override the body visibility animation so html2canvas sees all elements as visible
     document.body.style.visibility = 'visible'
 
-    // Hide UI elements
-    const scrollArrow = document.getElementById('scroll-arrow')
-    const apiKeyCorner = document.querySelector('.api-key-corner')
-    const shareBtn = document.getElementById('share-results-btn')
-    const keywordsDisplay = document.getElementById('keywords-display')
-    const careerActions = document.querySelector('.career-actions')
+    // Elements to exclude from the screenshot — identified up front so both
+    // captures use the same set. ignoreElements avoids touching the DOM (no
+    // display:none flicker while the async capture runs).
+    const excludeFromCapture = new Set([
+      document.getElementById('scroll-arrow'),
+      document.querySelector('.api-key-corner'),
+      document.getElementById('share-results-btn'),
+      document.getElementById('keywords-display'),
+      document.querySelector('.career-actions'),
+    ].filter(Boolean))
 
-    if (scrollArrow) scrollArrow.style.display = 'none'
-    if (apiKeyCorner) apiKeyCorner.style.display = 'none'
-    if (shareBtn) shareBtn.style.display = 'none'
-    if (keywordsDisplay) keywordsDisplay.style.display = 'none'
-    if (careerActions) careerActions.style.display = 'none'
+    const captureOpts = {
+      backgroundColor: '#1a1a2e',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      ignoreElements: (el) => excludeFromCapture.has(el),
+    }
 
     // Get the two sections to capture
     const mindmapContainer = document.getElementById('mindmap-container')
     const careerSection = document.getElementById('career-cards-section')
 
-    // Capture mind map (word webs)
+    // Measure actual node bounds so we can crop the empty SVG space in the clone
+    const svgEl = document.getElementById('mindmap-svg')
+    const bbox  = svgEl?.querySelector('.main-group')?.getBBox() ?? null
+    const PAD_TOP    = 60 // px of breathing room above the nodes in the image
+    const PAD_BOTTOM = 24 // px of breathing room below
+
+    // Capture mind map — crop empty space above/below nodes via viewBox on clone
     const mindmapCanvas = await html2canvas(mindmapContainer, {
-      backgroundColor: '#1a1a2e',
-      scale: 2,
-      useCORS: true,
-      logging: false
+      ...captureOpts,
+      onclone: (clonedDoc) => {
+        if (!bbox) return
+        const clonedSvg = clonedDoc.getElementById('mindmap-svg')
+        if (!clonedSvg) return
+        const svgW  = parseFloat(clonedSvg.getAttribute('width'))
+        const viewY = Math.max(0, bbox.y - PAD_TOP)
+        const viewH = bbox.height + PAD_TOP + PAD_BOTTOM
+        clonedSvg.setAttribute('viewBox', `0 ${viewY} ${svgW} ${viewH}`)
+        clonedSvg.setAttribute('height', viewH)
+        clonedSvg.style.height = `${viewH}px`
+        // Shrink the container to match so html2canvas doesn't capture dead space
+        const clonedContainer = clonedDoc.getElementById('mindmap-container')
+        if (clonedContainer) clonedContainer.style.height = `${viewH}px`
+      },
     })
 
-    // Capture career cards section
+    // Capture career cards — remove min-height:100vh and trim bottom padding via clone
     const careerCanvas = await html2canvas(careerSection, {
-      backgroundColor: '#1a1a2e',
-      scale: 2,
-      useCORS: true,
-      logging: false
+      ...captureOpts,
+      onclone: (clonedDoc) => {
+        const clonedSection = clonedDoc.getElementById('career-cards-section')
+        if (!clonedSection) return
+        clonedSection.style.minHeight = 'auto'
+        clonedSection.style.paddingBottom = `${PAD_BOTTOM}px`
+      },
     })
+
+    document.body.style.visibility = ''
 
     // Combine the two canvases vertically
     const combinedCanvas = document.createElement('canvas')
@@ -589,14 +617,6 @@ async function shareResults() {
     // Draw career cards below (centered if narrower)
     const careerX = (combinedCanvas.width - careerCanvas.width) / 2
     ctx.drawImage(careerCanvas, careerX, mindmapCanvas.height)
-
-    // Restore hidden elements
-    document.body.style.visibility = ''
-    if (scrollArrow) scrollArrow.style.display = ''
-    if (apiKeyCorner) apiKeyCorner.style.display = ''
-    if (shareBtn) shareBtn.style.display = ''
-    if (keywordsDisplay) keywordsDisplay.style.display = ''
-    if (careerActions) careerActions.style.display = ''
 
     // Convert to blob, then share natively on mobile or download on desktop
     const filename = state.selectedTone === 'playful' ? 'career-mind-map-playful.png' : 'career-mind-map.png'

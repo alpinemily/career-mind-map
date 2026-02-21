@@ -46,7 +46,10 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
 
   const shareBtn = document.createElement('button')
   shareBtn.id = 'share-results-btn'
-  shareBtn.textContent = 'Share results'
+  const isMobileDevice = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+  const shareBtnLabel = isMobileDevice ? 'Share results' : 'Download image'
+  shareBtn.textContent = shareBtnLabel
+  shareBtn.dataset.label = shareBtnLabel
   shareBtn.addEventListener('click', onShare)
   headerRow.appendChild(shareBtn)
 

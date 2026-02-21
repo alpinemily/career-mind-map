@@ -161,7 +161,7 @@ function renderMindMap(data) {
 
   const categories  = ['engagement', 'energy', 'flow']
   // True when the viewport is taller than it is wide (i.e. portrait orientation — phones)
-  const isMobile = window.innerWidth < window.innerHeight
+  const isMobileOrPortraitViewport = window.innerWidth < window.innerHeight
 
   let svg, mainGroup
 
@@ -173,7 +173,7 @@ function renderMindMap(data) {
   // Max extent a node can reach from center (used to scale down on tiny screens)
   const BASE_MAX_EXTENT = (BASE_PRIMARY_RADIUS + 15) + (BASE_SECONDARY_RADIUS + 5)
 
-  if (isMobile) {
+  if (isMobileOrPortraitViewport) {
     // Mobile: 3 maps in a horizontally scrollable row.
     // Radii scale to fit the viewport width, then section width is fitted tightly to the
     // content — so maps aren't spaced by viewport width (which causes huge gaps on larger phones).
@@ -292,13 +292,27 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName, offsetY = 0
     .attr('opacity', 0.85)
 
   node.append('text')
-    .text(d => d.label)
-    .attr('dy', 4)
     .attr('font-size', d => d.level === 0 ? '9px' : d.level === 1 ? '8px' : '9px')
     .attr('font-weight', d => d.level === 0 ? 'bold' : 'normal')
     .attr('fill', 'white')
     .attr('text-anchor', 'middle')
     .style('pointer-events', d => d.level === 2 ? 'all' : 'none')
+    .each(function(d) {
+      const sel = d3.select(this)
+      if (d.level === 0 && d.label.length > 20) {
+        const mid = Math.floor(d.label.length / 2)
+        let split = d.label.lastIndexOf(' ', mid)
+        if (split === -1) split = d.label.indexOf(' ', mid)
+        if (split === -1) {
+          sel.append('tspan').attr('x', 0).attr('dy', 4).text(d.label)
+        } else {
+          sel.append('tspan').attr('x', 0).attr('dy', -2).text(d.label.slice(0, split))
+          sel.append('tspan').attr('x', 0).attr('dy', 11).text(d.label.slice(split + 1))
+        }
+      } else {
+        sel.append('tspan').attr('x', 0).attr('dy', 4).text(d.label)
+      }
+    })
 
   // Ripple circle for tertiary nodes (sits on top, animated via CSS)
   node.filter(d => d.level === 2)
@@ -375,6 +389,22 @@ async function generateCareerIdeas() {
       onSwitchTone: (tone) => regenerateWithAlternateTone(tone, state.mashGroups),
       onStartOver:  startOver,
     })
+
+    // Desktop: clip the mindmap container so there's exactly 40px between the
+    // bottom of the rendered nodes and the scroll arrow (the SVG is full viewport
+    // height but the nodes only occupy the middle portion of it).
+    if (window.innerWidth >= window.innerHeight) {
+      const svgEl = document.getElementById('mindmap-svg')
+      const grpEl = svgEl?.querySelector('.main-group')
+      const mcEl  = document.getElementById('mindmap-container')
+      if (svgEl && grpEl && mcEl) {
+        const bbox     = grpEl.getBBox()
+        const clippedH = Math.round(bbox.y + bbox.height + 40)
+        svgEl.style.height = `${parseFloat(svgEl.getAttribute('height'))}px`
+        mcEl.style.height   = `${clippedH}px`
+        mcEl.style.overflow = 'hidden'
+      }
+    }
 
     // Hide the entire sidebar
     document.getElementById('mash-sidebar').classList.add('hidden')
@@ -554,7 +584,8 @@ async function shareResults() {
     const blob = await new Promise(resolve => combinedCanvas.toBlob(resolve, 'image/png'))
     const file = new File([blob], filename, { type: 'image/png' })
 
-    if (navigator.canShare?.({ files: [file] })) {
+    const isMobileDevice = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+    if (isMobileDevice && navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], title: 'My Career Mind Map' })
     } else {
       const url = URL.createObjectURL(blob)
@@ -567,20 +598,20 @@ async function shareResults() {
 
     if (btn) {
       btn.disabled = false
-      btn.textContent = 'Share results'
+      btn.textContent = btn.dataset.label
     }
 
   } catch (error) {
     // AbortError = user dismissed the native share sheet — not a real error
     if (error.name === 'AbortError') {
-      if (btn) { btn.disabled = false; btn.textContent = 'Share results' }
+      if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label }
       return
     }
     console.error(error)
     showErrorBar('Error generating image. Please try again.')
     if (btn) {
       btn.disabled = false
-      btn.textContent = 'Share results'
+      btn.textContent = btn.dataset.label
     }
   }
 }
@@ -684,6 +715,9 @@ function resetApp() {
   document.getElementById('mash-sidebar').classList.add('hidden')
   document.getElementById('mash-list').innerHTML = ''        // remove all mash group pills
   document.getElementById('generate-section').classList.add('hidden') // hide generate btn
+  const genCareersBtn = document.getElementById('generate-careers-btn')
+  genCareersBtn.textContent = 'Generate career ideas'
+  genCareersBtn.disabled = false
   document.getElementById('max-note').classList.add('hidden')
 
   // clear inline styles set during the session so CSS classes take over again

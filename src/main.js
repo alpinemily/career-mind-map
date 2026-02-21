@@ -12,6 +12,10 @@ const DEV_MODE     = new URLSearchParams(window.location.search).has('dev')
 // Staging mode: add ?staging to use a UI-entered API key and call Claude directly
 const STAGING_MODE = new URLSearchParams(window.location.search).has('staging')
 
+// Career ideas keyed by tone ('serious' / 'playful') — avoids a second API call when
+// the user toggles between tones after both have been generated once.
+const careerCache = {}
+
 function getStagingApiKey() {
   const key = document.getElementById('staging-api-key')?.value.trim()
   if (!key) throw new Error('Please enter your Claude API key to use staging mode')
@@ -383,6 +387,8 @@ async function generateCareerIdeas() {
       }))
     }
 
+    careerCache[state.selectedTone] = careerIdeas
+
     createCareerCardsSection(careerIdeas, state.mashGroups, {
       currentTone:  state.selectedTone,
       onShare:      shareResults,
@@ -456,9 +462,23 @@ function startOver() {
   setTimeout(resetApp, 400) // wait for fade-out to finish, then reset while invisible
 }
 
-// Regenerate career cards with the alternate tone
+// Switch to the alternate tone — uses cached ideas if available, otherwise calls Claude.
 async function regenerateWithAlternateTone(alternateTone, groups) {
   const btn = document.getElementById('switch-tone-btn')
+
+  if (careerCache[alternateTone]) {
+    // Already generated — show instantly from cache, no API call needed
+    state.selectedTone = alternateTone
+    createCareerCardsSection(careerCache[alternateTone], groups, {
+      currentTone:  alternateTone,
+      onShare:      shareResults,
+      onSwitchTone: (tone) => regenerateWithAlternateTone(tone, groups),
+      onStartOver:  startOver,
+    })
+    document.getElementById('career-cards-section')?.scrollIntoView({ behavior: 'smooth' })
+    return
+  }
+
   if (btn) setButtonLoading(btn, 'Generating')
 
   try {
@@ -479,16 +499,15 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
       }))
     }
 
+    careerCache[alternateTone] = careerIdeas
     state.selectedTone = alternateTone
     createCareerCardsSection(careerIdeas, groups, {
-      showToneSwitch: false,
-      currentTone:   alternateTone,
-      onShare:       shareResults,
-      onSwitchTone:  () => {},
-      onStartOver:   startOver,
+      currentTone:  alternateTone,
+      onShare:      shareResults,
+      onSwitchTone: (tone) => regenerateWithAlternateTone(tone, groups),
+      onStartOver:  startOver,
     })
 
-    // Scroll to career section since user is already past the mind map
     document.getElementById('career-cards-section')?.scrollIntoView({ behavior: 'smooth' })
   } catch (error) {
     console.error(error)
@@ -699,6 +718,8 @@ function showMindMap() {
 // is invisible (opacity 0), then fades back in — no reload, no flash.
 function resetApp() {
   resetSelectionState() // clears selectedNodes, mashGroups, allTertiaryNodes, selectedTone
+  careerCache.serious = null
+  careerCache.playful = null
 
   // tear down sections that were created dynamically during the session
   document.getElementById('career-cards-section')?.remove()

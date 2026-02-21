@@ -19,7 +19,8 @@
   <rect x="0" y="47" width="600" height="253" fill="url(#glow)"/>
 
   <!-- mind map illustration (right side) -->
-  <g transform="translate(450,158) scale(2.8)">
+  <g transform="translate(450,158) scale(2.8)" opacity="0.6">
+    <!-- primary edges -->
     <line x1="0" y1="0" x2="0"   y2="-24" stroke="#aaa" stroke-width="1.2" stroke-opacity="0.45"/>
     <line x1="0" y1="0" x2="22"  y2="-12" stroke="#aaa" stroke-width="1.2" stroke-opacity="0.45"/>
     <line x1="0" y1="0" x2="24"  y2="10"  stroke="#aaa" stroke-width="1.2" stroke-opacity="0.45"/>
@@ -27,6 +28,28 @@
     <line x1="0" y1="0" x2="-16" y2="24"  stroke="#aaa" stroke-width="1.2" stroke-opacity="0.45"/>
     <line x1="0" y1="0" x2="-24" y2="6"   stroke="#aaa" stroke-width="1.2" stroke-opacity="0.45"/>
     <line x1="0" y1="0" x2="-22" y2="-14" stroke="#aaa" stroke-width="1.2" stroke-opacity="0.45"/>
+    <!-- tertiary edges from (0,-24) red -->
+    <line x1="0"   y1="-24" x2="-10" y2="-36" stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="0"   y1="-24" x2="10"  y2="-36" stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- tertiary edges from (22,-12) green -->
+    <line x1="22"  y1="-12" x2="32"  y2="-21" stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="22"  y1="-12" x2="34"  y2="-4"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- tertiary edges from (24,10) yellow -->
+    <line x1="24"  y1="10"  x2="35"  y2="3"   stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="24"  y1="10"  x2="35"  y2="19"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- tertiary edges from (8,26) blue -->
+    <line x1="8"   y1="26"  x2="-2"  y2="36"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="8"   y1="26"  x2="18"  y2="36"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- tertiary edges from (-16,24) pink -->
+    <line x1="-16" y1="24"  x2="-26" y2="32"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="-16" y1="24"  x2="-8"  y2="35"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- tertiary edges from (-24,6) cyan -->
+    <line x1="-24" y1="6"   x2="-35" y2="-1"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="-24" y1="6"   x2="-35" y2="14"  stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- tertiary edges from (-22,-14) purple -->
+    <line x1="-22" y1="-14" x2="-32" y2="-23" stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <line x1="-22" y1="-14" x2="-14" y2="-25" stroke="#aaa" stroke-width="0.8" stroke-opacity="0.3"/>
+    <!-- primary nodes -->
     <circle cx="0"   cy="-24" r="5"   fill="#f5576c"/>
     <circle cx="22"  cy="-12" r="4.5" fill="#43e97b"/>
     <circle cx="24"  cy="10"  r="5"   fill="#fee140"/>
@@ -34,6 +57,28 @@
     <circle cx="-16" cy="24"  r="4.5" fill="#fa709a"/>
     <circle cx="-24" cy="6"   r="4"   fill="#30cfd0"/>
     <circle cx="-22" cy="-14" r="4.5" fill="#a18cd1"/>
+    <!-- tertiary nodes from (0,-24) red -->
+    <circle cx="-10" cy="-36" r="2.5" fill="#f5576c"/>
+    <circle cx="10"  cy="-36" r="2.5" fill="#f5576c"/>
+    <!-- tertiary nodes from (22,-12) green -->
+    <circle cx="32"  cy="-21" r="2.5" fill="#43e97b"/>
+    <circle cx="34"  cy="-4"  r="2.5" fill="#43e97b"/>
+    <!-- tertiary nodes from (24,10) yellow -->
+    <circle cx="35"  cy="3"   r="2.5" fill="#fee140"/>
+    <circle cx="35"  cy="19"  r="2.5" fill="#fee140"/>
+    <!-- tertiary nodes from (8,26) blue -->
+    <circle cx="-2"  cy="36"  r="2.5" fill="#4facfe"/>
+    <circle cx="18"  cy="36"  r="2.5" fill="#4facfe"/>
+    <!-- tertiary nodes from (-16,24) pink -->
+    <circle cx="-26" cy="32"  r="2.5" fill="#fa709a"/>
+    <circle cx="-8"  cy="35"  r="2.5" fill="#fa709a"/>
+    <!-- tertiary nodes from (-24,6) cyan -->
+    <circle cx="-35" cy="-1"  r="2.5" fill="#30cfd0"/>
+    <circle cx="-35" cy="14"  r="2.5" fill="#30cfd0"/>
+    <!-- tertiary nodes from (-22,-14) purple -->
+    <circle cx="-32" cy="-23" r="2.5" fill="#a18cd1"/>
+    <circle cx="-14" cy="-25" r="2.5" fill="#a18cd1"/>
+    <!-- center node -->
     <circle cx="0"   cy="0"   r="9"   fill="#667eea"/>
   </g>
 

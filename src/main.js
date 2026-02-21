@@ -72,7 +72,7 @@ const colorPalette = [
 
 
 // Build simple radial mind map for one category
-function buildCategoryMap(categoryData, centerX, centerY, primaryRadius = 100, secondaryRadius = 70) {
+function buildCategoryMap(categoryData, centerX, centerY, primaryRadius, secondaryRadius) {
   const nodes = []
   const links = []
 
@@ -110,8 +110,8 @@ function buildCategoryMap(categoryData, centerX, centerY, primaryRadius = 100, s
 
     // Secondary nodes
     item.secondary.forEach((word, j) => {
-      const secAngle = angle + (j - 1) * 0.5
-      const sDist = secondaryRadius + (Math.random() - 0.5) * 25
+      const secAngle = angle + (j - 1) * 0.65
+      const sDist = secondaryRadius + (Math.random() - 0.5) * 10
       const sx = px + Math.cos(secAngle) * sDist
       const sy = py + Math.sin(secAngle) * sDist
 
@@ -165,25 +165,31 @@ function renderMindMap(data) {
 
   let svg, mainGroup
 
-  // Max node reach from center = primaryRadius + half variation + secondaryRadius + half variation
-  // = 100 + 15 + 70 + 12.5 = 197.5px at the default radii
-  const MAX_REACH_AT_DEFAULT = 197.5
+  // ── Tweak these two values to adjust the mind map layout ──────────────────
+  const BASE_PRIMARY_RADIUS   = 88   // center → primary node distance
+  const BASE_SECONDARY_RADIUS = 88  // primary → tertiary node distance
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // Max extent a node can reach from center (used to scale down on tiny screens)
+  const BASE_MAX_EXTENT = (BASE_PRIMARY_RADIUS + 15) + (BASE_SECONDARY_RADIUS + 5)
 
   if (isMobile) {
-    // Mobile: 3 maps in a horizontally scrollable row — each map gets full viewport width
-    const sectionWidth  = window.innerWidth
-    const svgWidth      = sectionWidth * 3
+    // Mobile: 3 maps in a horizontally scrollable row.
+    // Radii scale to fit the viewport width, then section width is fitted tightly to the
+    // content — so maps aren't spaced by viewport width (which causes huge gaps on larger phones).
+    const viewportWidth   = window.innerWidth
+    const radiiScale      = Math.min(1, (viewportWidth / 2 - 20) / BASE_MAX_EXTENT)
+    const primaryRadius   = Math.round(BASE_PRIMARY_RADIUS   * radiiScale)
+    const secondaryRadius = Math.round(BASE_SECONDARY_RADIUS * radiiScale)
 
-    // Scale radii to fit within each full-width section (25px padding per side)
-    const maxReach      = sectionWidth / 2 - 25
-    const radiiScale    = Math.min(1, maxReach / MAX_REACH_AT_DEFAULT)
-    const primaryRadius   = Math.round(100 * radiiScale)
-    const secondaryRadius = Math.round(70  * radiiScale)
-
-    // SVG height: fit the nodes tightly (max radial extent + small padding)
-    const maxExtent = (primaryRadius + 15) + (secondaryRadius + 12.5)
-    const svgHeight = Math.round(maxExtent * 2 + 40)
-    const centerY   = svgHeight / 2
+    // Content extent = farthest a node can land from the center
+    const maxExtent  = (primaryRadius + 15) + (secondaryRadius + 5)
+    // Section width snugly wraps the content (15px padding each side)
+    const sectionWidth = Math.round(maxExtent * 2 + 30)
+    const svgWidth     = sectionWidth * 3
+    const svgHeight    = Math.round(maxExtent * 2 + 40)
+    const centerX      = sectionWidth / 2
+    const centerY      = svgHeight / 2
 
     svg = d3.select(container)
       .append('svg')
@@ -194,7 +200,7 @@ function renderMindMap(data) {
     mainGroup = svg.append('g').attr('class', 'main-group')
 
     categories.forEach((cat, i) => {
-      const mapData = buildCategoryMap(data[cat], sectionWidth / 2, centerY, primaryRadius, secondaryRadius)
+      const mapData = buildCategoryMap(data[cat], centerX, centerY, primaryRadius, secondaryRadius)
       renderCategoryInGroup(mainGroup, mapData, i * sectionWidth, cat, 0)
     })
 
@@ -224,11 +230,10 @@ function renderMindMap(data) {
     const sectionWidth   = availableWidth / 3
     const verticalCenter = height / 2
 
-    // Scale radii so nodes don't bleed into the adjacent section (8px padding each side)
-    const maxReach      = sectionWidth / 2 - 8
-    const radiiScale    = Math.min(1, maxReach / MAX_REACH_AT_DEFAULT)
-    const primaryRadius   = Math.round(100 * radiiScale)
-    const secondaryRadius = Math.round(70  * radiiScale)
+    // Scale radii down only if the section is too narrow to fit the base layout
+    const radiiScale      = Math.min(1, (sectionWidth / 2 - 8) / BASE_MAX_EXTENT)
+    const primaryRadius   = Math.round(BASE_PRIMARY_RADIUS   * radiiScale)
+    const secondaryRadius = Math.round(BASE_SECONDARY_RADIUS * radiiScale)
 
     svg = d3.select(container)
       .append('svg')
@@ -282,14 +287,14 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName, offsetY = 0
     .attr('data-id', d => `${categoryName}-${d.id}`)
 
   node.append('circle')
-    .attr('r', d => d.level === 0 ? 35 : d.level === 1 ? 22 : 14)
+    .attr('r', d => d.level === 0 ? 26 : d.level === 1 ? 20 : 26)
     .attr('fill', d => d.color)
     .attr('opacity', 0.85)
 
   node.append('text')
     .text(d => d.label)
     .attr('dy', 4)
-    .attr('font-size', d => d.level === 0 ? '11px' : d.level === 1 ? '9px' : '7px')
+    .attr('font-size', d => d.level === 0 ? '9px' : d.level === 1 ? '8px' : '9px')
     .attr('font-weight', d => d.level === 0 ? 'bold' : 'normal')
     .attr('fill', 'white')
     .attr('text-anchor', 'middle')
@@ -298,7 +303,7 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName, offsetY = 0
   // Ripple circle for tertiary nodes (sits on top, animated via CSS)
   node.filter(d => d.level === 2)
     .append('circle')
-    .attr('r', 14)
+    .attr('r', 26)
     .attr('class', 'node-ripple')
 
   // Add click handlers for tertiary nodes

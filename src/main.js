@@ -5,6 +5,7 @@ import { state, resetSelectionState, handleNodeClick, updateStagingText, finaliz
 import { createCareerCardsSection } from './careers.js'
 import { callClaudeAPI } from './apiClient.js'
 import { updateGenerateBtn } from './formValidation.js'
+import { parseCompactAssociations } from './parseAssociations.js'
 
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
 const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
@@ -43,42 +44,19 @@ function showErrorBar(message) {
 
 // Get all associations
 async function getAllAssociations(apiKey, engagement, energy, flow) {
-  const prompt = `Generate word associations for a career mind map. For each of these 3 keyphrases, generate 7 associated words, and for each of those, 3 more related words.
+  const prompt = `Word-associate 3 career mind map keyphrases. Per keyphrase: 7 words, each with 3 sub-words.
+ENGAGEMENT: "${engagement}"
+ENERGY: "${energy}"
+FLOW: "${flow}"
 
-1. ENGAGEMENT: "${engagement}"
-2. ENERGY: "${energy}"
-3. FLOW: "${flow}"
-
-Return ONLY valid JSON:
-{
-  "engagement": {
-    "keyword": "${engagement}",
-    "associations": [
-      {"word": "word1", "secondary": ["sub1", "sub2", "sub3"]},
-      {"word": "word2", "secondary": ["sub1", "sub2", "sub3"]},
-      {"word": "word3", "secondary": ["sub1", "sub2", "sub3"]},
-      {"word": "word4", "secondary": ["sub1", "sub2", "sub3"]},
-      {"word": "word5", "secondary": ["sub1", "sub2", "sub3"]},
-      {"word": "word6", "secondary": ["sub1", "sub2", "sub3"]},
-      {"word": "word7", "secondary": ["sub1", "sub2", "sub3"]}
-    ]
-  },
-  "energy": {
-    "keyword": "${energy}",
-    "associations": [/* same structure */]
-  },
-  "flow": {
-    "keyword": "${flow}",
-    "associations": [/* same structure */]
-  }
-}`
+JSON only — ordered array [engagement,energy,flow], each: [[word,s1,s2,s3],…×7]`
 
   const response = await callClaudeAPI(apiKey, prompt)
   let jsonStr = response.trim()
   if (jsonStr.startsWith('```')) {
     jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
   }
-  return JSON.parse(jsonStr)
+  return parseCompactAssociations(JSON.parse(jsonStr), { engagement, energy, flow })
 }
 
 // Color palette
@@ -285,48 +263,17 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName) {
 // Build career prompt for a given tone and groupings text
 function buildCareerPrompt(tone, groupingsText) {
   if (tone === 'playful') {
-    return `You are a wildly creative career counselor who thinks outside the box. Given combinations of 3 words, generate fun, unexpected, and imaginative career ideas that playfully combine all three concepts.
+    return `Wildly creative career counselor. Given word groups, generate fun unexpected careers that playfully combine all 3 words. Think quirky and delightful (e.g. "Pirate Surf Camp for Kids" from pirates+sports+kids).
 
-Here are the word groupings:
 ${groupingsText}
 
-For each grouping, create ONE creative career idea that combines all 3 words in an unexpected way. Think quirky, inventive, and delightful - like "Pirate Surf Camp for Kids" if the words were "pirates, sports, kids". The ideas should be fun and inspiring, not boring corporate job titles.
-
-Return ONLY valid JSON in this exact format:
-{
-  "careerIdeas": [
-    {"groupIndex": 0, "title": "Fun Career Title", "description": "A whimsical description of this creative career."},
-    {"groupIndex": 1, "title": "Fun Career Title", "description": "A whimsical description of this creative career."}
-  ]
-}
-
-Make sure to return one idea for each grouping provided.`
+JSON only — array in order, one per group: [{"t":"Fun Title","d":"Whimsical sentence."},…]`
   } else {
-    return `You are a creative career counselor who helps people discover unexpected but REALISTIC career paths. Given combinations of 3 words, generate imaginative career ideas that are inspired by these concepts.
+    return `Creative career counselor. Given word groups, generate real implementable careers INSPIRED by (not literally combining) the words. No whimsical or impossible ideas — actual jobs or businesses someone could pursue.
 
-IMPORTANT GUIDELINES:
-- The career must be a REAL, implementable job or business that could exist in the real world
-- Do NOT literally combine the 3 words into a description - instead, let them INSPIRE a creative but practical career
-- Avoid overly whimsical or impossible ideas like "GPS tracking emotional journeys through bike poetry"
-- Think of actual jobs, businesses, or services someone could realistically start or pursue
-- The career should be creative and unexpected, but grounded enough that someone could actually do it
-
-Example: If words were "pirates, sports, kids" - a good answer would be "Adventure Sailing Instructor" with description "Run youth sailing camps with treasure hunt adventures" - NOT "Pirate-themed emotional water journey facilitator"
-
-Here are the word groupings:
 ${groupingsText}
 
-For each grouping, create ONE creative but realistic career idea. Provide a short, catchy career title (3-6 words) and a brief practical description (1 sentence explaining what you'd actually do).
-
-Return ONLY valid JSON in this exact format:
-{
-  "careerIdeas": [
-    {"groupIndex": 0, "title": "Career Title Here", "description": "Brief description of what this job actually involves."},
-    {"groupIndex": 1, "title": "Career Title Here", "description": "Brief description of what this job actually involves."}
-  ]
-}
-
-Make sure to return one idea for each grouping provided.`
+JSON only — array in order, one per group: [{"t":"Short Title","d":"One sentence of what you'd actually do."},…]`
   }
 }
 
@@ -350,7 +297,7 @@ async function generateCareerIdeas() {
       careerIdeas = getMockCareerIdeas(state.mashGroups, state.selectedTone)
     } else {
       const groupingsText = state.mashGroups.map((group, i) =>
-        `${i + 1}. "${group.join('" + "')}"`
+        `${i + 1}. ${group.join(', ')}`
       ).join('\n')
       const prompt = buildCareerPrompt(state.selectedTone, groupingsText)
       const response = await callClaudeAPI(apiKey, prompt)
@@ -358,7 +305,9 @@ async function generateCareerIdeas() {
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
       }
-      careerIdeas = JSON.parse(jsonStr).careerIdeas
+      careerIdeas = JSON.parse(jsonStr).map((idea, i) => ({
+        groupIndex: i, title: idea.t, description: idea.d,
+      }))
     }
 
     createCareerCardsSection(careerIdeas, state.mashGroups, {
@@ -432,7 +381,7 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
       careerIdeas = getMockCareerIdeas(groups, alternateTone)
     } else {
       const groupingsText = groups.map((group, i) =>
-        `${i + 1}. "${group.join('" + "')}"`
+        `${i + 1}. ${group.join(', ')}`
       ).join('\n')
       const prompt = buildCareerPrompt(alternateTone, groupingsText)
       const response = await callClaudeAPI(apiKey, prompt)
@@ -440,7 +389,9 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
       if (jsonStr.startsWith('```')) {
         jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim()
       }
-      careerIdeas = JSON.parse(jsonStr).careerIdeas
+      careerIdeas = JSON.parse(jsonStr).map((idea, i) => ({
+        groupIndex: i, title: idea.t, description: idea.d,
+      }))
     }
 
     state.selectedTone = alternateTone

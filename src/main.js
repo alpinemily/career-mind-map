@@ -44,7 +44,7 @@ function showErrorBar(message) {
 
 // Get all associations
 async function getAllAssociations(apiKey, engagement, energy, flow) {
-  const prompt = `Word-associate 3 career mind map keyphrases. Per keyphrase: 7 words, each with 3 sub-words.
+  const prompt = `Word-associate 3 career mind map keyphrases. Per keyphrase: 7 words, each with 3 sub-words. Be creative and lateral — go beyond the obvious, but the connection should still be immediately understandable to a human (no abstract leaps).
 ENGAGEMENT: "${engagement}"
 ENERGY: "${energy}"
 FLOW: "${flow}"

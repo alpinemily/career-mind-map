@@ -9,6 +9,16 @@ import { updateGenerateBtn } from './formValidation.js'
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
 const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
 
+function setButtonLoading(btn, label) {
+  btn.disabled = true
+  btn.innerHTML = `${label} <span class="btn-dots"><span></span><span></span><span></span></span>`
+}
+
+function clearButtonLoading(btn, label) {
+  btn.disabled = false
+  btn.textContent = label
+}
+
 function showErrorBar(message) {
   let bar = document.getElementById('error-bar')
   if (!bar) {
@@ -317,8 +327,7 @@ async function generateCareerIdeas() {
   if (state.mashGroups.length === 0) return
 
   const btn = document.getElementById('generate-careers-btn')
-  btn.disabled = true
-  btn.textContent = 'Generating...'
+  setButtonLoading(btn, 'Generating')
 
   try {
     let careerIdeas
@@ -380,8 +389,7 @@ async function generateCareerIdeas() {
   } catch (error) {
     console.error(error)
     showErrorBar(error.message)
-    btn.disabled = false
-    btn.textContent = 'Generate career ideas'
+    clearButtonLoading(btn, 'Generate career ideas')
   }
 }
 
@@ -401,10 +409,7 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
   }
 
   const btn = document.getElementById('switch-tone-btn')
-  if (btn) {
-    btn.disabled = true
-    btn.textContent = 'Generating...'
-  }
+  if (btn) setButtonLoading(btn, 'Generating')
 
   try {
     let careerIdeas
@@ -439,9 +444,8 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
     console.error(error)
     showErrorBar(error.message)
     if (btn) {
-      btn.disabled = false
       const label = alternateTone === 'playful' ? 'Playful' : 'Serious'
-      btn.textContent = `Try ${label} ideas instead`
+      clearButtonLoading(btn, `Try ${label} ideas instead`)
     }
   }
 }

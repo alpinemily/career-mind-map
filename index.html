@@ -37,7 +37,7 @@
             <input
               type="text"
               id="keyword-engagement"
-              placeholder="e.g. group facilitation"
+              placeholder="e.g. creating new recipes"
               minlength="1"
               maxlength="40"
             />
@@ -49,7 +49,7 @@
             <input
               type="text"
               id="keyword-energy"
-              placeholder="e.g. shipping a product"
+              placeholder="e.g. group facilitation"
               minlength="1"
               maxlength="40"
             />
@@ -74,13 +74,19 @@
 
       <!-- Loading indicator -->
       <div id="loading" class="hidden">
-        <div class="spinner"></div>
-        <p id="loading-text">Generating associations...</p>
+        <div class="spinner">
+          <div class="spinner-dot"></div>
+          <div class="spinner-dot"></div>
+          <div class="spinner-dot"></div>
+          <div class="spinner-dot"></div>
+          <div class="spinner-dot"></div>
+        </div>
+        <p id="loading-text">Generating your mind maps...</p>
       </div>
 
       <!-- Keywords display at bottom after animation -->
       <div id="keywords-display" class="hidden">
-        <p id="instruction-text" class="hidden">Choose groups of 3 words at a time from the edge nodes only</p>
+        <p id="instruction-text" class="hidden">Choose groups of 3 words from the edge nodes only</p>
         <div class="keyword-pills">
           <span id="display-engagement" class="keyword-pill"></span>
           <span id="display-energy" class="keyword-pill"></span>
@@ -93,10 +99,10 @@
 
       <!-- Right sidebar for Mind Map Mashes -->
       <div id="mash-sidebar" class="hidden">
-        <h3>Mind Map Mashes</h3>
+        <h3>Mind Map Groupings</h3>
         <button id="randomize-btn">Randomize</button>
         <div id="mash-list"></div>
-        <p id="max-note" class="hidden">Maximum 8 mashes reached</p>
+        <p id="max-note" class="hidden">Max 8 groupings reached</p>
         <div id="generate-section" class="hidden">
           <div class="tone-toggle">
             <span class="tone-label">Tone:</span>

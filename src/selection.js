@@ -44,13 +44,14 @@ export function updateStagingText() {
 }
 
 // Lock in the current 3-node selection as a completed mash group
-export function finalizeMash() {
+export function finalizeMash(clearDelay = 0) {
   const labels = state.selectedNodes.map(n => n.label)
   state.mashGroups.push(labels)
 
-  // Promote staging row to a permanent entry
+  // Promote staging row to a permanent entry, storing labels for hover lookup
   if (state.currentStagingEl) {
     state.currentStagingEl.classList.remove('staging')
+    state.currentStagingEl.dataset.labels = labels.join(',')
     state.currentStagingEl = null
   }
 
@@ -59,15 +60,21 @@ export function finalizeMash() {
   }
   if (state.mashGroups.length >= MAX_MASHES) {
     document.getElementById('max-note')?.classList.remove('hidden')
+    const randomizeBtn = document.getElementById('randomize-btn')
+    if (randomizeBtn) randomizeBtn.disabled = true
   }
 
-  // Clear visual selection on every node that was part of this group
-  state.selectedNodes.forEach(n => n.element.classList.remove('selected'))
+  // Clear state immediately so new selections can begin,
+  // but delay removing the visual highlight to match the ripple duration
+  const nodesToClear = state.selectedNodes.slice()
   state.selectedNodes = []
+  const clearFn = () => nodesToClear.forEach(n => n.element.classList.remove('selected'))
+  if (clearDelay > 0) setTimeout(clearFn, clearDelay)
+  else clearFn()
 }
 
 // Handle a click on a tertiary (leaf) node — toggles selection
-export function handleNodeClick(element, data) {
+export function handleNodeClick(element, data, finalizeDelay = 0) {
   if (state.mashGroups.length >= MAX_MASHES) return
 
   const nodeId    = element.getAttribute('data-id')
@@ -81,7 +88,7 @@ export function handleNodeClick(element, data) {
     state.selectedNodes.push({ id: nodeId, label: data.label, element })
     element.classList.add('selected')
     updateStagingText()
-    if (state.selectedNodes.length === 3) finalizeMash()
+    if (state.selectedNodes.length === 3) finalizeMash(finalizeDelay)
   }
 }
 
@@ -98,10 +105,28 @@ export function randomizeMash() {
   }
   state.selectedNodes = []
 
-  const shuffled = [...state.allTertiaryNodes].sort(() => Math.random() - 0.5)
-  const picked   = shuffled.slice(0, 3)
+  // Group nodes by category, then pick one random node from each category
+  const byCategory = {}
+  state.allTertiaryNodes.forEach(n => {
+    const cat = n.category ?? 'default'
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(n)
+  })
+  const categories = Object.keys(byCategory)
+  if (categories.length < 3) {
+    // Fallback: fewer than 3 categories (e.g. in tests) — pick randomly
+    const shuffled = [...state.allTertiaryNodes].sort(() => Math.random() - 0.5)
+    return shuffled.slice(0, 3)
+  }
+  const picked = categories.slice(0, 3).map(cat => {
+    const nodes = byCategory[cat]
+    return nodes[Math.floor(Math.random() * nodes.length)]
+  })
 
   picked.forEach(node => node.element.classList.add('random-highlight'))
+  setTimeout(() => {
+    picked.forEach(node => node.element.classList.remove('random-highlight'))
+  }, 1500)
 
   const labels = picked.map(n => n.data.label)
   state.mashGroups.push(labels)
@@ -110,6 +135,7 @@ export function randomizeMash() {
   if (listEl) {
     const groupEl = document.createElement('div')
     groupEl.className = 'mash-group'
+    groupEl.dataset.labels = labels.join(',')
     groupEl.innerHTML = labels.join('<span> + </span>')
     listEl.appendChild(groupEl)
   }
@@ -121,7 +147,5 @@ export function randomizeMash() {
     document.getElementById('max-note')?.classList.remove('hidden')
   }
 
-  setTimeout(() => {
-    picked.forEach(node => node.element.classList.remove('random-highlight'))
-  }, 5000)
+  return picked
 }

@@ -13,8 +13,19 @@ function makeEl(id, label = id) {
   return el
 }
 
-function makeTertiaryNode(id) {
-  return { element: makeEl(id, `word-${id}`), data: { label: `word-${id}` } }
+const CATEGORIES = ['engagement', 'energy', 'flow']
+
+function makeTertiaryNode(id, categoryIndex = 0) {
+  return {
+    element: makeEl(id, `word-${id}`),
+    data: { label: `word-${id}` },
+    category: CATEGORIES[categoryIndex % CATEGORIES.length],
+  }
+}
+
+// Builds a realistic set of nodes spread across all 3 categories
+function makeNodesAcrossCategories(ids) {
+  return ids.map((id, i) => makeTertiaryNode(id, i))
 }
 
 const SIDEBAR_HTML = `
@@ -212,26 +223,30 @@ describe('randomizeMash', () => {
 
   it('does nothing when MAX_MASHES groups already exist', () => {
     for (let i = 0; i < MAX_MASHES; i++) state.mashGroups.push(['a', 'b', 'c'])
-    state.allTertiaryNodes = ['a', 'b', 'c'].map(makeTertiaryNode)
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
     randomizeMash()
     expect(state.mashGroups).toHaveLength(MAX_MASHES) // unchanged
   })
 
   it('adds exactly one group of 3 labels', () => {
-    state.allTertiaryNodes = ['a', 'b', 'c', 'd', 'e'].map(makeTertiaryNode)
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c', 'd', 'e', 'f'])
     randomizeMash()
     expect(state.mashGroups).toHaveLength(1)
     expect(state.mashGroups[0]).toHaveLength(3)
   })
 
-  it('picks 3 unique nodes (no duplicates within the group)', () => {
-    state.allTertiaryNodes = ['a', 'b', 'c', 'd', 'e'].map(makeTertiaryNode)
+  it('picks one node from each category (no duplicates within the group)', () => {
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c', 'd', 'e', 'f'])
     randomizeMash()
-    expect(new Set(state.mashGroups[0]).size).toBe(3)
+    const pickedCategories = state.mashGroups[0].map((label) => {
+      const node = state.allTertiaryNodes.find(n => n.data.label === label)
+      return node?.category
+    })
+    expect(new Set(pickedCategories).size).toBe(3)
   })
 
   it('adds a .mash-group row to the sidebar list', () => {
-    state.allTertiaryNodes = ['a', 'b', 'c'].map(makeTertiaryNode)
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
     randomizeMash()
     const list = document.getElementById('mash-list')
     expect(list.children).toHaveLength(1)
@@ -239,25 +254,23 @@ describe('randomizeMash', () => {
   })
 
   it('reveals the generate section', () => {
-    state.allTertiaryNodes = ['a', 'b', 'c'].map(makeTertiaryNode)
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
     randomizeMash()
     expect(document.getElementById('generate-section').classList.contains('hidden')).toBe(false)
   })
 
-  it('applies and later removes the random-highlight class', async () => {
-    state.allTertiaryNodes = ['a', 'b', 'c'].map(makeTertiaryNode)
-    randomizeMash()
-    const allHighlighted = state.allTertiaryNodes.every(n =>
-      n.element.classList.contains('random-highlight')
-    )
-    expect(allHighlighted).toBe(true)
+  it('applies the random-highlight class to the 3 picked nodes', () => {
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    const picked = randomizeMash()
+    expect(picked).toHaveLength(3)
+    picked.forEach(n => expect(n.element.classList.contains('random-highlight')).toBe(true))
   })
 
   it('clears any existing manual selection before randomizing', () => {
     const existingEl = makeEl('existing')
     existingEl.classList.add('selected')
     state.selectedNodes = [{ id: 'existing', label: 'old', element: existingEl }]
-    state.allTertiaryNodes = ['a', 'b', 'c'].map(makeTertiaryNode)
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
     randomizeMash()
     expect(state.selectedNodes).toHaveLength(0)
     expect(existingEl.classList.contains('selected')).toBe(false)

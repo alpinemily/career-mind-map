@@ -245,6 +245,28 @@ button:active {
   transform: translateY(0);
 }
 
+/* Node ripple animation */
+.node-ripple {
+  fill: white;
+  opacity: 0;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.tertiary-node.ripple .node-ripple {
+  animation: node-ripple 1.5s ease-out forwards;
+}
+
+.tertiary-node.ripple-multi .node-ripple {
+  animation: node-ripple 1.5s ease-out 3 forwards;
+}
+
+@keyframes node-ripple {
+  0%   { transform: scale(1);   opacity: 0.5; }
+  100% { transform: scale(1.7); opacity: 0;   }
+}
+
 .btn-dots {
   display: inline-flex;
   gap: 3px;
@@ -435,6 +457,7 @@ button.hidden {
   stroke-width: 3;
 }
 
+
 /* Right sidebar */
 #mash-sidebar {
   position: fixed;
@@ -490,6 +513,7 @@ button.hidden {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
+  cursor: pointer;
   font-size: clamp(0.65rem, 1.2vw, 0.8rem);
   color: white;
   line-height: 1.4;
@@ -502,6 +526,7 @@ button.hidden {
 .mash-group.staging {
   border-style: dashed;
   opacity: 0.7;
+  cursor: default;
 }
 
 .mash-group span {

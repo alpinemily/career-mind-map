@@ -45,10 +45,10 @@ describe('career cards section — presence', () => {
 describe('career cards section — header', () => {
   beforeEach(() => setup())
 
-  it('contains an h2 with the text "Your Career Ideas"', () => {
+  it('contains an h2 with the text "Mind Map Career Ideas"', () => {
     const h2 = document.querySelector('#career-cards-section h2')
     expect(h2).not.toBeNull()
-    expect(h2.textContent).toBe('Your Career Ideas')
+    expect(h2.textContent).toBe('Mind Map Career Ideas')
   })
 
   it('contains the share button (#share-results-btn)', () => {

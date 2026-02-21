@@ -35,7 +35,7 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
   headerRow.className = 'career-section-header'
 
   const title = document.createElement('h2')
-  title.textContent = 'Your Career Ideas'
+  title.textContent = 'Mind Map Career Ideas'
   headerRow.appendChild(title)
 
   const shareBtn = document.createElement('button')

@@ -32,6 +32,45 @@ body {
   position: relative;
 }
 
+/* Error bar */
+#error-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(140, 60, 60, 0.6);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  z-index: 9999;
+  font-size: 0.9rem;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+
+#error-bar.visible {
+  transform: translateY(0);
+}
+
+#error-bar-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0 0 0 1rem;
+  line-height: 1;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+#error-bar-close:hover {
+  opacity: 1;
+}
+
 /* Dev mode badge */
 #dev-mode-badge {
   position: fixed;
@@ -143,12 +182,25 @@ header h1 {
   text-align: center;
 }
 
-.input-example {
+.exercise-note-link {
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: underline;
+}
+
+.exercise-note-link:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.exercise-note {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(900px, 90vw);
   font-size: 0.75rem;
-  color: #555;
-  margin: 0;
-  text-align: center;
-  font-style: italic;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.6;
+  text-align: left;
 }
 
 .input-group input {
@@ -556,14 +608,22 @@ button.hidden {
   background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
 }
 
-/* Header row: title left, share button right, width-matched to cards container */
+/* Header row: title centered, share button right */
 .career-section-header {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   max-width: 1200px;
   width: 100%;
   margin-bottom: 2rem;
+}
+
+.career-section-header h2 {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
 }
 
 #career-cards-section h2 {
@@ -591,10 +651,6 @@ button.hidden {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.career-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
-}
 
 .card-words {
   font-size: 0.8rem;

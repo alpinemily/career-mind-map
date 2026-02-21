@@ -5,6 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/careermindmap.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Career Mind Map</title>
+    <style>
+      body {
+        visibility: hidden;
+        animation: reveal 0s 0.1s forwards;
+      }
+      @keyframes reveal { to { visibility: visible; } }
+    </style>
   </head>
   <body>
     <div id="app">
@@ -20,7 +27,7 @@
       <!-- Main form area -->
       <div id="form-container">
         <header>
-          <h1>Career Mind Map</h1>
+          <h1>Create Your Career Mind Map*</h1>
         </header>
 
         <div class="keyword-inputs">
@@ -30,8 +37,10 @@
             <input
               type="text"
               id="keyword-engagement"
+              placeholder="e.g. group facilitation"
+              minlength="1"
+              maxlength="40"
             />
-            <p class="input-example">e.g. balancing the budget, pitching a new idea, teaching a class</p>
           </div>
 
           <div class="input-group keyword-group">
@@ -40,8 +49,10 @@
             <input
               type="text"
               id="keyword-energy"
+              placeholder="e.g. shipping a product"
+              minlength="1"
+              maxlength="40"
             />
-            <p class="input-example">e.g. art class, giving feedback to colleagues, writing travel guides</p>
           </div>
 
           <div class="input-group keyword-group">
@@ -50,12 +61,15 @@
             <input
               type="text"
               id="keyword-flow"
+              placeholder="e.g. drawing"
+              minlength="1"
+              maxlength="40"
             />
-            <p class="input-example">e.g. speaking to a large audience, brainstorming creative ideas, social dance</p>
           </div>
         </div>
 
         <button id="generate-btn">Generate Mind Maps</button>
+        <p class="exercise-note">*This website was built by <a href="https://alpinemily.com/about" target="_blank" rel="noopener">Emily Bei</a> and inspired by the book <a href="https://designingyour.life" target="_blank" rel="noopener"><em>Designing Your Life</em></a>. Mind maps are a tool for expanding possibilities before narrowing them down. Instead of asking "What job should I get?", you start with a central theme that energizes you and rapidly branch into related ideas without premature judgement. The exercise encourages lateral thinking to reveal unexpected connections and alternative life directions.
       </div>
 
       <!-- Loading indicator -->
@@ -96,6 +110,6 @@
         </div>
       </div>
     </div>
-    <script type="module" src="/src/main.js"></script>
+<script type="module" src="/src/main.js"></script>
   </body>
 </html>

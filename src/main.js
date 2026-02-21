@@ -3,35 +3,27 @@ import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
 import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
 import { createCareerCardsSection } from './careers.js'
+import { callClaudeAPI } from './apiClient.js'
+import { updateGenerateBtn } from './formValidation.js'
 
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
 const DEV_MODE = new URLSearchParams(window.location.search).has('dev')
 
-// Claude API helper
-async function callClaudeAPI(apiKey, prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error?.message || 'API request failed')
+function showErrorBar(message) {
+  let bar = document.getElementById('error-bar')
+  if (!bar) {
+    bar = document.createElement('div')
+    bar.id = 'error-bar'
+    document.body.prepend(bar)
   }
-
-  const data = await response.json()
-  return data.content[0].text
+  bar.innerHTML = `<span>${message}</span><button id="error-bar-close" aria-label="Dismiss">&times;</button>`
+  bar.classList.add('visible')
+  const dismiss = () => bar.classList.remove('visible')
+  document.getElementById('error-bar-close').addEventListener('click', dismiss)
+  clearTimeout(bar._timeout)
+  bar._timeout = setTimeout(dismiss, 6000)
 }
+
 
 // Get all associations
 async function getAllAssociations(apiKey, engagement, energy, flow) {
@@ -318,7 +310,7 @@ Make sure to return one idea for each grouping provided.`
 async function generateCareerIdeas() {
   const apiKey = document.getElementById('api-key').value.trim()
   if (!DEV_MODE && !apiKey) {
-    alert('Please enter your Claude API key')
+    showErrorBar('Please enter your Claude API key')
     return
   }
 
@@ -387,7 +379,7 @@ async function generateCareerIdeas() {
 
   } catch (error) {
     console.error(error)
-    alert(`Error generating ideas: ${error.message}`)
+    showErrorBar(error.message)
     btn.disabled = false
     btn.textContent = 'Generate career ideas'
   }
@@ -404,7 +396,7 @@ function startOver() {
 async function regenerateWithAlternateTone(alternateTone, groups) {
   const apiKey = document.getElementById('api-key').value.trim()
   if (!DEV_MODE && !apiKey) {
-    alert('Please enter your Claude API key')
+    showErrorBar('Please enter your Claude API key')
     return
   }
 
@@ -445,7 +437,7 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
     document.getElementById('career-cards-section')?.scrollIntoView({ behavior: 'smooth' })
   } catch (error) {
     console.error(error)
-    alert(`Error generating ideas: ${error.message}`)
+    showErrorBar(error.message)
     if (btn) {
       btn.disabled = false
       const label = alternateTone === 'playful' ? 'Playful' : 'Serious'
@@ -470,6 +462,9 @@ async function shareResults() {
       document.head.appendChild(script)
       await new Promise(resolve => script.onload = resolve)
     }
+
+    // Override the body visibility animation so html2canvas sees all elements as visible
+    document.body.style.visibility = 'visible'
 
     // Hide UI elements
     const scrollArrow = document.getElementById('scroll-arrow')
@@ -523,6 +518,7 @@ async function shareResults() {
     ctx.drawImage(careerCanvas, careerX, mindmapCanvas.height)
 
     // Restore hidden elements
+    document.body.style.visibility = ''
     if (scrollArrow) scrollArrow.style.display = ''
     if (apiKeyCorner) apiKeyCorner.style.display = ''
     if (shareBtn) shareBtn.style.display = ''
@@ -546,7 +542,7 @@ async function shareResults() {
 
   } catch (error) {
     console.error(error)
-    alert('Error generating image. Please try again.')
+    showErrorBar('Error generating image. Please try again.')
     if (btn) {
       btn.disabled = false
       btn.textContent = 'Share results'
@@ -681,6 +677,13 @@ function resetApp() {
 }
 
 function init() {
+  // Disable generate button until all 3 fields are filled
+  const generateBtn = document.getElementById('generate-btn')
+  const keywordInputs = ['keyword-engagement', 'keyword-energy', 'keyword-flow'].map(id => document.getElementById(id))
+
+  keywordInputs.forEach(el => el.addEventListener('input', () => updateGenerateBtn(keywordInputs, generateBtn)))
+  updateGenerateBtn(keywordInputs, generateBtn) // set initial state
+
   // Randomize button
   document.getElementById('randomize-btn').addEventListener('click', randomizeMash)
 
@@ -719,8 +722,8 @@ function init() {
     const energy = document.getElementById('keyword-energy').value.trim()
     const flow = document.getElementById('keyword-flow').value.trim()
 
-    if (!DEV_MODE && !apiKey) return alert('Please enter your Claude API key (top right corner)')
-    if (!engagement || !energy || !flow) return alert('Please fill in all three keyword fields')
+    if (!DEV_MODE && !apiKey) { showErrorBar('Please enter your Claude API key (top right corner)'); return }
+    if (!engagement || !energy || !flow) { showErrorBar('Please fill in all three keyword fields'); return }
 
     const btn = document.getElementById('generate-btn')
     btn.disabled = true
@@ -748,7 +751,7 @@ function init() {
       renderMindMap(data)
     } catch (error) {
       console.error(error)
-      alert(`Error: ${error.message}`)
+      showErrorBar(error.message)
       loading.classList.add('hidden')
       document.getElementById('form-container').style.visibility = 'visible'
       document.getElementById('form-container').classList.remove('hidden')

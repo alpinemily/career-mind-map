@@ -877,18 +877,21 @@ function showRateLimitSpiral() {
 }
 
 function createLandingBg() {
-  const NS     = 'http://www.w3.org/2000/svg'
-  const N      = 7    // secondaries per cluster
-  const SPREAD = 40   // ± degrees for tertiary spread
+  const NS           = 'http://www.w3.org/2000/svg'
+  const N            = 7    // secondaries per cluster
+  const SPREAD       = 40   // ± degrees for tertiary spread
+  const CENTER_COLOR = '#667eea'
+  // One colour per branch — matches the actual mind map node palette
+  const BRANCH_COLORS = ['#f5576c', '#43e97b', '#fee140', '#4facfe', '#fa709a', '#30cfd0', '#a18cd1']
 
   // Similar-sized clusters flanking both edges
   const clusters = [
-    { cx: 200,  cy: 160, color: '#646cff', a0: 0,   cls: 'bg-float-slow', r1: 82, r2: 42 },  // left top
-    { cx: 200,  cy: 740, color: '#30cfd0', a0: 300, cls: 'bg-float-fast', r1: 78, r2: 40 },  // left bottom
-    { cx: 75,   cy: 450, color: '#4facfe', a0: 270, cls: 'bg-float-med',  r1: 74, r2: 38 },  // left mid
-    { cx: 1240, cy: 160, color: '#f093fb', a0: 130, cls: 'bg-float-med',  r1: 80, r2: 41 },  // right top
-    { cx: 1240, cy: 740, color: '#f5576c', a0: 50,  cls: 'bg-float-slow', r1: 85, r2: 44 },  // right bottom
-    { cx: 1365, cy: 450, color: '#43e97b', a0: 90,  cls: 'bg-float-fast', r1: 76, r2: 39 },  // right mid
+    { cx: 200,  cy: 160, a0: 0,   cls: 'bg-float-slow', r1: 82, r2: 42 },  // left top
+    { cx: 200,  cy: 740, a0: 300, cls: 'bg-float-fast',  r1: 78, r2: 40 },  // left bottom
+    { cx: 75,   cy: 450, a0: 270, cls: 'bg-float-med',   r1: 74, r2: 38 },  // left mid
+    { cx: 1240, cy: 160, a0: 130, cls: 'bg-float-med',   r1: 80, r2: 41 },  // right top
+    { cx: 1240, cy: 740, a0: 50,  cls: 'bg-float-slow',  r1: 85, r2: 44 },  // right bottom
+    { cx: 1365, cy: 450, a0: 90,  cls: 'bg-float-fast',  r1: 76, r2: 39 },  // right mid
   ]
 
   const svg = document.createElementNS(NS, 'svg')
@@ -916,15 +919,16 @@ function createLandingBg() {
     return `M ${x1},${y1} Q ${cpx},${cpy} ${x2},${y2}`
   }
 
-  for (const { cx, cy, color, a0, cls, r1, r2 } of clusters) {
+  for (const { cx, cy, a0, cls, r1, r2 } of clusters) {
     // Group opacity creates an isolated compositing buffer: circles at opacity:1 within
     // the group will properly occlude lines, so the web reads as one unified shape.
     const g = document.createElementNS(NS, 'g')
     g.setAttribute('class', cls)
-    g.setAttribute('opacity', '0.11')
+    g.setAttribute('opacity', '0.18')
 
     // Pre-compute all positions in one pass so lines and circles share the same coords
     const secs = Array.from({ length: N }, (_, i) => {
+      const color = BRANCH_COLORS[i]
       const a    = a0 + i * (360 / N)
       const rad  = deg2rad(a)
       const rLen = r1 * (0.82 + Math.random() * 0.36)          // ±18% length variation
@@ -937,23 +941,23 @@ function createLandingBg() {
         const tBend = (Math.random() - 0.5) * r2 * 0.35
         return { x: Math.round(sx + tLen * Math.cos(ta)), y: Math.round(sy + tLen * Math.sin(ta)), bend: tBend }
       })
-      return { x: sx, y: sy, bend, ters }
+      return { x: sx, y: sy, bend, ters, color }
     })
 
     // Curved paths first — lines are semi-transparent within the group buffer
     for (const s of secs) {
-      g.appendChild(mkEl('path', { d: curvePath(cx, cy, s.x, s.y, s.bend), stroke: color, 'stroke-width': '1.5', opacity: '0.65', fill: 'none' }))
+      g.appendChild(mkEl('path', { d: curvePath(cx, cy, s.x, s.y, s.bend), stroke: s.color, 'stroke-width': '1.5', opacity: '0.65', fill: 'none' }))
       for (const t of s.ters) {
-        g.appendChild(mkEl('path', { d: curvePath(s.x, s.y, t.x, t.y, t.bend), stroke: color, 'stroke-width': '1', opacity: '0.5', fill: 'none' }))
+        g.appendChild(mkEl('path', { d: curvePath(s.x, s.y, t.x, t.y, t.bend), stroke: s.color, 'stroke-width': '1', opacity: '0.5', fill: 'none' }))
       }
     }
 
     // Circles at full opacity within the group — they sit on top and fully cover line ends
-    g.appendChild(mkEl('circle', { cx, cy, r: '9', fill: color, opacity: '1' }))
+    g.appendChild(mkEl('circle', { cx, cy, r: '9', fill: CENTER_COLOR, opacity: '1' }))
     for (const s of secs) {
-      g.appendChild(mkEl('circle', { cx: s.x, cy: s.y, r: '5', fill: color, opacity: '1' }))
+      g.appendChild(mkEl('circle', { cx: s.x, cy: s.y, r: '5', fill: s.color, opacity: '1' }))
       for (const t of s.ters) {
-        g.appendChild(mkEl('circle', { cx: t.x, cy: t.y, r: '3.5', fill: color, opacity: '1' }))
+        g.appendChild(mkEl('circle', { cx: t.x, cy: t.y, r: '3.5', fill: s.color, opacity: '1' }))
       }
     }
 

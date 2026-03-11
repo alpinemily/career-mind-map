@@ -413,10 +413,37 @@ button.hidden {
 }
 
 #instruction-text {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  letter-spacing: 0.02em;
   margin: 0;
   text-align: center;
+  z-index: 50;
+  white-space: nowrap;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.7);
+  -webkit-mask-image: linear-gradient(to right, black, black 60%, transparent 90%);
+  mask-image: linear-gradient(to right, black, black 60%, transparent 90%);
+  -webkit-mask-size: 200%;
+  mask-size: 200%;
+  animation: instruction-fade-in 1.2s ease forwards;
+}
+
+@keyframes instruction-fade-in {
+  from {
+    opacity: 0;
+    -webkit-mask-position: 100%;
+    mask-position: 100%;
+  }
+  to {
+    opacity: 1;
+    -webkit-mask-position: 0%;
+    mask-position: 0%;
+  }
 }
 
 #instruction-text.hidden {
@@ -520,11 +547,18 @@ button.hidden {
 
 /* Portrait / mobile: maps scroll horizontally, sidebar moves below */
 @media (orientation: portrait) {
+  #instruction-text {
+    white-space: normal;
+    width: 90vw;
+    text-align: center;
+  }
+
   #mindmap-container {
     height: auto;
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    padding-top: 120px;
   }
 
   /* Don't force SVG to fill container height — use the intrinsic height set in JS */

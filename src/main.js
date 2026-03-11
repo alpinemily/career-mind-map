@@ -422,6 +422,9 @@ async function generateCareerIdeas() {
     // Hide the entire sidebar
     document.getElementById('mash-sidebar').classList.add('hidden')
 
+    // Hide instruction text
+    document.getElementById('instruction-text').classList.add('hidden')
+
     // Fade out instruction text and keyword pills
     const keywordsDisplay = document.getElementById('keywords-display')
     if (keywordsDisplay) {

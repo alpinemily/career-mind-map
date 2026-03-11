@@ -53,11 +53,13 @@ function updateInstructionText() {
         ? 'You can create up to 8 word groups. Each group will generate a potential career idea.'
         : null
   if (!nextText) return
-  el.style.transition = 'opacity 0.3s ease'
   el.style.opacity = '0'
   setTimeout(() => {
     el.textContent = nextText
-    el.style.opacity = '1'
+    el.style.animation = 'none'
+    el.offsetWidth // force reflow to restart animation
+    el.style.animation = ''
+    el.style.opacity = ''
   }, 300)
 }
 

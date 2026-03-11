@@ -6,6 +6,7 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
   const {
     showToneSwitch = true,
     currentTone    = 'serious',
+    sectionTitle   = 'Mind Map Career Ideas',
     onShare        = () => {},
     onSwitchTone   = () => {},
     onStartOver    = () => {},
@@ -35,7 +36,7 @@ export function createCareerCardsSection(careerIdeas, groups, opts = {}) {
   headerRow.className = 'career-section-header'
 
   const title = document.createElement('h2')
-  title.textContent = 'Mind Map Career Ideas'
+  title.textContent = sectionTitle
   if (currentTone === 'playful') {
     const badge = document.createElement('span')
     badge.className = 'tone-badge'

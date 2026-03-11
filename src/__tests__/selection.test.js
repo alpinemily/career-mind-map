@@ -41,6 +41,13 @@ const SIDEBAR_WITH_RANDOMIZE_HTML = `
   <button id="randomize-btn">Randomize</button>
 `
 
+const SIDEBAR_WITH_INSTRUCTION_HTML = `
+  <div id="mash-list"></div>
+  <div id="generate-section" class="hidden"></div>
+  <div id="max-note" class="hidden"></div>
+  <p id="instruction-text">Choose any 3 words from the outer rings of mind maps</p>
+`
+
 // ── state reset ───────────────────────────────────────────────────────────────
 
 describe('resetSelectionState', () => {
@@ -361,6 +368,107 @@ describe('finalizeMash — randomize button disabled at MAX_MASHES', () => {
     for (let i = 0; i < MAX_MASHES - 1; i++) state.mashGroups.push(['x', 'y', 'z'])
     state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
     expect(() => finalizeMash()).not.toThrow()
+  })
+})
+
+// ── instruction text transitions ──────────────────────────────────────────────
+
+describe('finalizeMash — instruction text updates', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    resetSelectionState()
+    document.body.innerHTML = SIDEBAR_WITH_INSTRUCTION_HTML
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('starts the fade-out immediately after the 1st group is finalized', () => {
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    expect(document.getElementById('instruction-text').style.opacity).toBe('0')
+  })
+
+  it('updates text to the "Great start" message after 300ms on the 1st group', () => {
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').textContent).toContain('Great start')
+  })
+
+  it('fades back in (opacity 1) after 300ms on the 1st group', () => {
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').style.opacity).toBe('1')
+  })
+
+  it('updates text to the "up to 8 word groups" message after 300ms on the 2nd group', () => {
+    state.mashGroups.push(['x', 'y', 'z']) // simulate 1st group already done
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').textContent).toContain('up to 8 word groups')
+  })
+
+  it('does not change text on the 3rd group', () => {
+    state.mashGroups.push(['x', 'y', 'z'])
+    state.mashGroups.push(['p', 'q', 'r'])
+    const originalText = document.getElementById('instruction-text').textContent
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    finalizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').textContent).toBe(originalText)
+  })
+
+  it('does not throw when #instruction-text is absent from the DOM', () => {
+    document.body.innerHTML = SIDEBAR_HTML
+    state.selectedNodes = ['a', 'b', 'c'].map(id => ({ id, label: id, element: makeEl(id) }))
+    expect(() => finalizeMash()).not.toThrow()
+  })
+})
+
+describe('randomizeMash — instruction text updates', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    resetSelectionState()
+    document.body.innerHTML = SIDEBAR_WITH_INSTRUCTION_HTML
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('updates text to the "Great start" message after 300ms on the 1st randomized group', () => {
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    randomizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').textContent).toContain('Great start')
+  })
+
+  it('updates text to the "up to 8 word groups" message after 300ms on the 2nd randomized group', () => {
+    state.mashGroups.push(['x', 'y', 'z'])
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    randomizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').textContent).toContain('up to 8 word groups')
+  })
+
+  it('does not change text on the 3rd randomized group', () => {
+    state.mashGroups.push(['x', 'y', 'z'])
+    state.mashGroups.push(['p', 'q', 'r'])
+    const originalText = document.getElementById('instruction-text').textContent
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    randomizeMash()
+    vi.advanceTimersByTime(300)
+    expect(document.getElementById('instruction-text').textContent).toBe(originalText)
+  })
+
+  it('does not throw when #instruction-text is absent from the DOM', () => {
+    document.body.innerHTML = SIDEBAR_HTML
+    state.allTertiaryNodes = makeNodesAcrossCategories(['a', 'b', 'c'])
+    expect(() => randomizeMash()).not.toThrow()
   })
 })
 

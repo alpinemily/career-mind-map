@@ -254,6 +254,27 @@ describe('career cards section — tone toggle cycle', () => {
   })
 })
 
+// ── sectionTitle option ───────────────────────────────────────────────────────
+
+describe('career cards section — sectionTitle option', () => {
+  it('defaults to "Mind Map Career Ideas" when sectionTitle is not provided', () => {
+    setup()
+    expect(document.querySelector('#career-cards-section h2').textContent).toBe('Mind Map Career Ideas')
+  })
+
+  it('uses a custom sectionTitle when provided', () => {
+    setup(IDEAS, GROUPS, { sectionTitle: 'Mind Map Hobby Ideas' })
+    expect(document.querySelector('#career-cards-section h2').textContent).toBe('Mind Map Hobby Ideas')
+  })
+
+  it('tone badge text is preserved alongside a custom sectionTitle', () => {
+    setup(IDEAS, GROUPS, { sectionTitle: 'Mind Map Hobby Ideas', currentTone: 'playful' })
+    const badge = document.querySelector('.tone-badge')
+    expect(badge).not.toBeNull()
+    expect(badge.textContent).toBe('Playful')
+  })
+})
+
 // ── scroll arrow ──────────────────────────────────────────────────────────────
 
 describe('career cards section — scroll arrow', () => {

@@ -43,6 +43,24 @@ export function updateStagingText() {
   state.currentStagingEl.innerHTML = labels.join('<span> + </span>')
 }
 
+function updateInstructionText() {
+  const el = document.getElementById('instruction-text')
+  if (!el) return
+  const nextText =
+    state.mashGroups.length === 1
+      ? 'Great start. This group will generate a career idea. Add three more words to create another.'
+      : state.mashGroups.length === 2
+        ? 'You can create up to 8 word groups. Each group will generate a potential career idea.'
+        : null
+  if (!nextText) return
+  el.style.transition = 'opacity 0.3s ease'
+  el.style.opacity = '0'
+  setTimeout(() => {
+    el.textContent = nextText
+    el.style.opacity = '1'
+  }, 300)
+}
+
 // Lock in the current 3-node selection as a completed mash group
 export function finalizeMash(clearDelay = 0) {
   const labels = state.selectedNodes.map(n => n.label)
@@ -63,6 +81,8 @@ export function finalizeMash(clearDelay = 0) {
     const randomizeBtn = document.getElementById('randomize-btn')
     if (randomizeBtn) randomizeBtn.disabled = true
   }
+
+  updateInstructionText()
 
   // Clear state immediately so new selections can begin,
   // but delay removing the visual highlight to match the ripple duration
@@ -146,6 +166,8 @@ export function randomizeMash() {
   if (state.mashGroups.length >= MAX_MASHES) {
     document.getElementById('max-note')?.classList.remove('hidden')
   }
+
+  updateInstructionText()
 
   return picked
 }

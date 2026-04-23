@@ -3,14 +3,16 @@ import * as d3 from 'd3'
 import { MOCK_ASSOCIATIONS, getMockCareerIdeas } from './mockData.js'
 import { state, resetSelectionState, handleNodeClick, updateStagingText, finalizeMash, randomizeMash, MAX_MASHES } from './selection.js'
 import { createCareerCardsSection } from './careers.js'
-import { callClaudeAssociations, callClaudeCareers, callClaudeDirect, parseClaudeJSON, RATE_LIMIT_MESSAGE, callLogShare } from './apiClient.js'
+import { callClaudeAssociations, callClaudeCareers, callWithFallback, parseClaudeJSON, RATE_LIMIT_MESSAGE, callLogShare } from './apiClient.js'
 import { updateGenerateBtn } from './formValidation.js'
 import { parseCompactAssociations } from './parseAssociations.js'
 
 // Dev mode: add ?dev to the URL to skip all API calls and use mock data
 const DEV_MODE      = new URLSearchParams(window.location.search).has('dev')
-// Staging mode: add ?staging to use a UI-entered API key and call Claude directly
+// Staging mode: add ?staging to use a UI-entered API key and call the provider directly
 const STAGING_MODE  = new URLSearchParams(window.location.search).has('staging')
+// AI provider: add ?provider=openai to use OpenAI instead of Anthropic (default)
+const AI_PROVIDER   = new URLSearchParams(window.location.search).get('provider') ?? 'anthropic'
 // Rate-limit preview: add ?spiral to immediately show the spiral animation
 const SPIRAL_VIEW_MODE = new URLSearchParams(window.location.search).has('spiral')
 
@@ -24,8 +26,22 @@ let sessionKeywords = { engagement: '', energy: '', flow: '' }
 
 function getStagingApiKey() {
   const key = document.getElementById('staging-api-key')?.value.trim()
-  if (!key) throw new Error('Please enter your Claude API key to use staging mode')
+  const label = AI_PROVIDER === 'openai' ? 'OpenAI' : 'Claude'
+  if (!key) throw new Error(`Please enter your ${label} API key`)
   return key
+}
+
+function getFallbackApiKey() {
+  return document.getElementById('fallback-api-key')?.value.trim() || null
+}
+
+function callDirect(prompt) {
+  return callWithFallback({
+    provider:        AI_PROVIDER,
+    apiKey:          getStagingApiKey(),
+    fallbackApiKey:  getFallbackApiKey(),
+    prompt,
+  })
 }
 
 function triggerRipple(element, multi = false) {
@@ -67,8 +83,8 @@ FLOW: "${flow}"
 
 JSON only — ordered array [engagement,energy,flow], each: [[word,s1,s2,s3],…×7]`
 
-  const response = STAGING_MODE
-    ? await callClaudeDirect(getStagingApiKey(), prompt)
+  const response = (STAGING_MODE || AI_PROVIDER === 'openai')
+    ? await callDirect(prompt)
     : await callClaudeAssociations(prompt)
   return parseCompactAssociations(parseClaudeJSON(response), { engagement, energy, flow })
 }
@@ -386,8 +402,8 @@ async function generateCareerIdeas() {
       ).join('\n')
       const prompt = buildCareerPrompt(state.selectedTone, groupingsText)
       const meta   = { ...sessionKeywords, tone: state.selectedTone }
-      const response = STAGING_MODE
-        ? await callClaudeDirect(getStagingApiKey(), prompt)
+      const response = (STAGING_MODE || AI_PROVIDER === 'openai')
+        ? await callDirect(prompt)
         : await callClaudeCareers(prompt, meta)
       careerIdeas = parseClaudeJSON(response).map((idea, i) => ({
         groupIndex: i, title: idea.t, description: idea.d,
@@ -502,8 +518,8 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
       ).join('\n')
       const prompt = buildCareerPrompt(alternateTone, groupingsText)
       const meta   = { ...sessionKeywords, tone: alternateTone }
-      const response = STAGING_MODE
-        ? await callClaudeDirect(getStagingApiKey(), prompt)
+      const response = (STAGING_MODE || AI_PROVIDER === 'openai')
+        ? await callDirect(prompt)
         : await callClaudeCareers(prompt, meta)
       careerIdeas = parseClaudeJSON(response).map((idea, i) => ({
         groupIndex: i, title: idea.t, description: idea.d,
@@ -533,7 +549,7 @@ async function regenerateWithAlternateTone(alternateTone, groups) {
 // Share results as image
 async function shareResults() {
   // Log the share click immediately — fire-and-forget, never blocks the flow
-  if (!DEV_MODE && !STAGING_MODE) {
+  if (!DEV_MODE && !STAGING_MODE && AI_PROVIDER !== 'openai') {
     callLogShare(sessionKeywords.engagement, sessionKeywords.energy, sessionKeywords.flow, state.selectedTone)
   }
 
@@ -1022,16 +1038,21 @@ function init() {
     updateGenerateBtn(keywordInputs, generateBtn)
   }
 
-  // Staging mode setup
-  if (STAGING_MODE) {
+  // Staging / direct provider mode setup
+  if (STAGING_MODE || AI_PROVIDER === 'openai') {
     const badge = document.createElement('div')
     badge.id = 'dev-mode-badge'
-    badge.textContent = 'STAGING MODE'
+    badge.textContent = AI_PROVIDER === 'openai' ? 'OPENAI MODE' : 'STAGING MODE'
     document.getElementById('app').appendChild(badge)
 
     const corner = document.createElement('div')
     corner.className = 'api-key-corner'
-    corner.innerHTML = '<input type="text" id="staging-api-key" placeholder="Claude API Key" />'
+    const primaryPlaceholder  = AI_PROVIDER === 'openai' ? 'OpenAI API Key' : 'Claude API Key'
+    const fallbackPlaceholder = AI_PROVIDER === 'openai' ? 'Claude API Key (fallback)' : 'OpenAI API Key (fallback)'
+    corner.innerHTML = `
+      <input type="text" id="staging-api-key"  placeholder="${primaryPlaceholder}" />
+      <input type="text" id="fallback-api-key" placeholder="${fallbackPlaceholder}" />
+    `
     document.getElementById('app').appendChild(corner)
   }
 
@@ -1041,8 +1062,9 @@ function init() {
     const flow = document.getElementById('keyword-flow').value.trim()
 
     if (!engagement || !energy || !flow) { showErrorBar('Please fill in all three keyword fields'); return }
-    if (STAGING_MODE && !document.getElementById('staging-api-key')?.value.trim()) {
-      showErrorBar('Please enter your Claude API key for staging mode'); return
+    if ((STAGING_MODE || AI_PROVIDER === 'openai') && !document.getElementById('staging-api-key')?.value.trim()) {
+      const label = AI_PROVIDER === 'openai' ? 'OpenAI' : 'Claude'
+      showErrorBar(`Please enter your ${label} API key`); return
     }
 
     sessionKeywords = { engagement, energy, flow }

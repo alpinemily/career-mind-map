@@ -77,6 +77,7 @@ export async function callClaudeDirect(apiKey, prompt) {
   } catch {
     throw new Error(ERROR_MESSAGE)
   }
+  if (response.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
   if (!response.ok) throw new Error(ERROR_MESSAGE)
   const data = await response.json()
   return data.content[0].text
@@ -101,6 +102,7 @@ export async function callOpenAIDirect(apiKey, prompt) {
   } catch {
     throw new Error(ERROR_MESSAGE)
   }
+  if (response.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
   if (!response.ok) throw new Error(ERROR_MESSAGE)
   const data = await response.json()
   return data.choices[0].message.content

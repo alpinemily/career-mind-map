@@ -89,12 +89,21 @@ JSON only — ordered array [engagement,energy,flow], each: [[word,s1,s2,s3],…
   return parseCompactAssociations(parseClaudeJSON(response), { engagement, energy, flow })
 }
 
-// Color palette
-const colorPalette = [
-  '#646cff',
-  '#f093fb', '#f5576c', '#4facfe', '#43e97b',
-  '#fa709a', '#fee140', '#30cfd0'
-]
+// Colors, matching alpinemily.com: black ink on white with a red accent.
+// Set as SVG attributes (not CSS) so html2canvas keeps them in shared PNGs.
+const PAPER  = '#fff'
+const INK    = '#000'
+const ACCENT = 'red'
+// One muted tone per branch — no reds, so the red selected state stays distinct
+const BRANCH_COLORS = ['#5b7a99', '#7d9471', '#b3924f', '#8e7391', '#5f8f8b', '#a08070', '#76808f']
+
+// Center is solid ink; primary nodes are filled with their branch color;
+// secondary (selectable) words are white with a branch-colored outline
+function nodeStyle(d) {
+  if (d.level === 0) return { fill: INK, stroke: INK, text: PAPER }
+  if (d.level === 1) return { fill: d.color, stroke: d.color, text: PAPER }
+  return { fill: PAPER, stroke: d.color, text: INK }
+}
 
 
 // Build simple radial mind map for one category
@@ -108,14 +117,12 @@ function buildCategoryMap(categoryData, centerX, centerY, primaryRadius, seconda
     label: categoryData.keyword,
     level: 0,
     group: 0,
-    color: colorPalette[0],
     x: centerX,
     y: centerY
   })
 
   categoryData.associations.forEach((item, i) => {
     const angle = (i / 7) * Math.PI * 2 - Math.PI / 2
-    const groupColor = colorPalette[(i % 7) + 1]
 
     // Vary primary distance slightly
     const pDist = primaryRadius + (Math.random() - 0.5) * 30
@@ -127,12 +134,12 @@ function buildCategoryMap(categoryData, centerX, centerY, primaryRadius, seconda
       label: item.word,
       level: 1,
       group: i + 1,
-      color: groupColor,
+      color: BRANCH_COLORS[i % BRANCH_COLORS.length],
       x: px,
       y: py
     })
 
-    links.push({ source: 'center', target: `p-${i}`, color: groupColor })
+    links.push({ source: 'center', target: `p-${i}`, color: BRANCH_COLORS[i % BRANCH_COLORS.length] })
 
     // Secondary nodes
     item.secondary.forEach((word, j) => {
@@ -146,12 +153,12 @@ function buildCategoryMap(categoryData, centerX, centerY, primaryRadius, seconda
         label: word,
         level: 2,
         group: i + 1,
-        color: groupColor,
+        color: BRANCH_COLORS[i % BRANCH_COLORS.length],
         x: sx,
         y: sy
       })
 
-      links.push({ source: `p-${i}`, target: `s-${i}-${j}`, color: groupColor })
+      links.push({ source: `p-${i}`, target: `s-${i}-${j}`, color: BRANCH_COLORS[i % BRANCH_COLORS.length] })
     })
   })
 
@@ -297,8 +304,8 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName, offsetY = 0
       return curvePath(src.x, src.y, tgt.x, tgt.y)
     })
     .attr('stroke', d => d.color)
-    .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.4)
+    .attr('stroke-opacity', 0.6)
+    .attr('stroke-width', 1)
     .attr('fill', 'none')
 
   // Nodes
@@ -314,18 +321,19 @@ function renderCategoryInGroup(parentG, data, offsetX, categoryName, offsetY = 0
 
   node.append('circle')
     .attr('r', d => d.level === 0 ? 26 : d.level === 1 ? 20 : 26)
-    .attr('fill', d => d.color)
-    .attr('opacity', 0.85)
+    .attr('fill', d => nodeStyle(d).fill)
+    .attr('stroke', d => nodeStyle(d).stroke)
+    .attr('stroke-width', 1.5)
 
   node.append('text')
     .attr('font-size', d => d.level === 0 ? '9px' : d.level === 1 ? '8px' : '9px')
     .attr('font-weight', d => d.level === 0 ? 'bold' : 'normal')
-    .attr('fill', 'white')
+    .attr('fill', d => nodeStyle(d).text)
     .attr('text-anchor', 'middle')
     .style('pointer-events', d => d.level === 2 ? 'all' : 'none')
     .each(function(d) {
       const sel = d3.select(this)
-      if (d.level === 0 && d.label.length > 20) {
+      if (d.level === 0 && d.label.length > 12) {
         const mid = Math.floor(d.label.length / 2)
         let split = d.label.lastIndexOf(' ', mid)
         if (split === -1) split = d.label.indexOf(' ', mid)
@@ -583,7 +591,7 @@ async function shareResults() {
     ].filter(Boolean))
 
     const captureOpts = {
-      backgroundColor: '#1a1a2e',
+      backgroundColor: PAPER,
       scale: 2,
       useCORS: true,
       logging: false,
@@ -639,7 +647,7 @@ async function shareResults() {
     combinedCanvas.height = mindmapCanvas.height + careerCanvas.height
 
     // Fill background
-    ctx.fillStyle = '#1a1a2e'
+    ctx.fillStyle = PAPER
     ctx.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height)
 
     // Draw mind map at top (centered if narrower)
@@ -713,9 +721,9 @@ function animateKeywordsToBottom() {
       el.style.cssText = `
         position: fixed; left: ${rects[i].left}px; top: ${rects[i].top}px;
         width: ${rects[i].width}px; height: ${rects[i].height}px;
-        padding: 0.75rem 1rem; background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
-        color: white; font-size: 1rem; z-index: 1000;
+        padding: 8px; background: #fff;
+        border: 1px solid #999; border-radius: 0;
+        color: #000; font-family: 'Inconsolata', monospace; font-size: 1rem; z-index: 1000;
         display: flex; align-items: center; box-sizing: border-box;
       `
       document.body.appendChild(el)
@@ -738,9 +746,8 @@ function animateKeywordsToBottom() {
           el.style.top = `${el.dataset.finalTop}px`
           el.style.width = `${el.dataset.finalWidth}px`
           el.style.height = `${el.dataset.finalHeight}px`
-          el.style.padding = '0.5rem 1.2rem'
-          el.style.borderRadius = '20px'
-          el.style.fontSize = '0.85rem'
+          el.style.padding = '0.4rem 1rem'
+          el.style.borderColor = '#ccc'
         })
       })
     })
@@ -865,7 +872,7 @@ function showRateLimitSpiral() {
   const path = document.createElementNS(NS, 'path')
   path.setAttribute('d', parts.join(''))
   path.setAttribute('fill', 'none')
-  path.setAttribute('stroke', 'rgba(255,255,255,0.18)')
+  path.setAttribute('stroke', 'rgba(0,0,0,0.15)')
   path.setAttribute('stroke-width', '1')
   path.setAttribute('stroke-linecap', 'round')
   svg.appendChild(path)
@@ -899,9 +906,7 @@ function createLandingBg() {
   const NS           = 'http://www.w3.org/2000/svg'
   const N            = 7    // secondaries per cluster
   const SPREAD       = 40   // ± degrees for tertiary spread
-  const CENTER_COLOR = '#667eea'
-  // One colour per branch — matches the actual mind map node palette
-  const BRANCH_COLORS = ['#f5576c', '#43e97b', '#fee140', '#4facfe', '#fa709a', '#30cfd0', '#a18cd1']
+  const CENTER_COLOR = ACCENT
 
   // Similar-sized clusters flanking both edges
   const clusters = [
@@ -943,7 +948,7 @@ function createLandingBg() {
     // the group will properly occlude lines, so the web reads as one unified shape.
     const g = document.createElementNS(NS, 'g')
     g.setAttribute('class', cls)
-    g.setAttribute('opacity', '0.18')
+    g.setAttribute('opacity', '0.22')
 
     // Pre-compute all positions in one pass so lines and circles share the same coords
     const secs = Array.from({ length: N }, (_, i) => {

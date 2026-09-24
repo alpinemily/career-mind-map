@@ -7,7 +7,8 @@
 //      and paste the returned id into wrangler.toml
 //   4. wrangler secret put CLAUDE_API_KEY
 //   5. wrangler secret put ALLOWED_ORIGIN
-//      and enter your deployed site URL e.g. https://alpinemily.github.io
+//      and enter your deployed site origin(s), comma-separated
+//      e.g. https://emilybei.com,https://alpinemily.github.io
 //   6. wrangler secret put LOGTAIL_TOKEN
 //      and enter your Better Stack source token
 //   7. wrangler deploy
@@ -158,10 +159,11 @@ async function logToLogtail(token, payload) {
 
 function corsHeaders(request, env) {
   const origin        = request.headers.get('Origin') || ''
-  const allowed       = env.ALLOWED_ORIGIN || '*'
-  const allowedOrigin = allowed === '*' ? '*' : (origin === allowed ? origin : '')
+  const allowed       = (env.ALLOWED_ORIGIN || '*').split(',').map(o => o.trim().replace(/\/$/, ''))
+  const allowedOrigin = allowed.includes('*') ? '*' : (allowed.includes(origin) ? origin : '')
   return {
     'Access-Control-Allow-Origin':  allowedOrigin,
+    'Vary':                         'Origin',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   }
